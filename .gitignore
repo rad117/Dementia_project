@@ -1,0 +1,17 @@
+# Private/sensitive dataset — never commit raw data, only the README
+data/*
+!data/README.md
+models/*
+!models/README.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Audio
+*.wav
+*.mp3
+*.flac
+*.m4a
