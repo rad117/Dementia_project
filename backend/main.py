@@ -7,6 +7,8 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
+    # DEV ONLY — Phase 0. Replace with an explicit frontend origin allow-list
+    # before any non-local deployment. See docs/ACTION_PLAN.md Phase 1.
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
