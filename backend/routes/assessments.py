@@ -17,5 +17,5 @@ async def create_assessment(
     language: str = Form(...),
     task_id: str = Form(...),
 ) -> AssessmentResult:
-    await audio.read()  # Phase 0: audio is discarded, not processed or stored.
-    return generate_mock_result(language, task_id)
+    audio_bytes = await audio.read()  # Phase 0: audio bytes are read into memory but not processed or persisted.
+    return generate_mock_result(audio_bytes, language, task_id)

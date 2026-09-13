@@ -34,7 +34,7 @@ Trivial liveness check for local dev / frontend integration testing. Returns `{"
     "needs_clinician_review": true
   }
   ```
-- `assessment_id` is a freshly generated UUID per call (so the frontend dashboard has something unique to key off), everything else is fixed/mock data returned by a `services/mock_inference.py` function with a signature the real pipeline can later replace without changing `routes/`.
+- `assessment_id` is a freshly generated UUID per call (so the frontend dashboard has something unique to key off), everything else is fixed/mock data returned by a `services/mock_inference.py` function — `generate_mock_result(audio_bytes, language, task_id)` — whose signature already matches what the real pipeline will need (audio bytes plus the form fields), so the real implementation can replace the function body later without changing `routes/`.
 
 ## File layout
 
@@ -47,7 +47,7 @@ backend/
 ├── schemas/
 │   └── assessment.py       # Pydantic response model (AssessmentResult)
 ├── services/
-│   └── mock_inference.py   # generate_mock_result(language, task_id) -> AssessmentResult
+│   └── mock_inference.py   # generate_mock_result(audio_bytes, language, task_id) -> AssessmentResult
 └── README.md                # updated with venv/run instructions
 ```
 

@@ -3,7 +3,7 @@ import uuid
 from backend.schemas.assessment import AssessmentResult
 
 
-def generate_mock_result(language: str, task_id: str) -> AssessmentResult:
+def generate_mock_result(audio_bytes: bytes, language: str, task_id: str) -> AssessmentResult:
     return AssessmentResult(
         assessment_id=str(uuid.uuid4()),
         language=language,
