@@ -4,11 +4,11 @@
 
 ## 1. Status Snapshot
 
-- **As of:** 2026-09-12
-- **Repo:** `rad117/Dementia_project` (GitHub) — created, currently near-empty (placeholder README only, before this commit).
-- **Dataset:** Private, classified voice-recording dataset (dementia patients + controls) expected **2026-09-13**. Not yet in hand. Exact labels, languages, and per-participant recording counts are unknown until then.
-- **Code:** None written yet. This session scaffolds the repo folder layout only (no implementation).
-- **Next concrete action:** once the dataset arrives, run the dataset audit in the checklist (Section 9) before writing any ML code against it.
+- **As of:** 2026-09-13
+- **Repo:** `rad117/Dementia_project` (GitHub) — Phase 0 backend skeleton implemented and merged to `main`.
+- **Dataset:** ADReSSo 2021 received and extracted to `data/adresso2021/` (gitignored — raw audio is never committed, see Section 8). Partial audit done — see Section 12 for what's confirmed vs. still open. Headline: 85 `Dementia/` + 79 `Normal/` `.wav` files, one recording per participant, binary label only (no staged severity confirmed). No transcripts, metadata, or demographics shipped with this download. 24 `Dementia/` filenames carry an unexplained `-i`/`_i` suffix and one is `..._severe.wav` — **meaning not yet confirmed, do not build a severity feature or exclude/include these files on a guess.**
+- **Code:** Backend Phase 0 done — `backend/` is a working FastAPI app (`GET /health`, `POST /api/assessments` accepting multipart audio+language+task_id, returning the mock `AssessmentResult` JSON from Section 10 with `model_version: "mock-0.0"`). 6/6 tests passing. Frontend Phase 0 (task flow, mic recording, mock dashboard) **not started**. Real ML pipeline (`ml/`) **not started** — still mock-only.
+- **Next concrete action:** (1) get the `-i`/`_severe` suffix meaning, task/prompt used, languages present, and storage/consent terms from ma'am (Section 12); (2) build the frontend Phase 0 pieces against the now-live mock API; (3) once labels are confirmed, start the Phase 1 dataset audit's remaining items and the real feature-extraction pipeline.
 
 ## 2. Project Summary
 
@@ -106,7 +106,7 @@ project/
 ├── CONTEXT.md           # this file
 └── README.md
 ```
-Scaffolded as empty placeholder folders in this session; no implementation code yet.
+`backend/` is now implemented (Phase 0 mock skeleton, see Section 9). `frontend/`, `ml/`, `models/` are still empty placeholders. `data/` holds the extracted (gitignored) ADReSSo dataset locally — never committed.
 
 ## 8. Critical Constraints (do not violate)
 
@@ -124,19 +124,19 @@ Scaffolded as empty placeholder folders in this session; no implementation code 
 - [x] Read source PDF, assess viability, write this context doc.
 - [x] Scaffold repo folder structure (empty placeholders).
 - [ ] Build frontend assessment flow with mock tasks + browser mic recording.
-- [ ] Build backend file-upload endpoint (FastAPI skeleton).
-- [ ] Build a mock ML inference endpoint returning structured JSON (see Section 10 for shape).
+- [x] Build backend file-upload endpoint (FastAPI skeleton). — combined with mock inference into one endpoint, see below.
+- [x] Build a mock ML inference endpoint returning structured JSON (see Section 10 for shape). — `POST /api/assessments` in `backend/routes/assessments.py`; mock logic in `backend/services/mock_inference.py`. Full setup/run/test instructions in `backend/README.md`.
 - [ ] Build a mock clinician dashboard + longitudinal-history UI off that mock JSON.
 - [ ] Set up GitHub branching convention and module ownership (see Section 11).
 
 ### Phase 1 — Dataset arrives (2026-09-13 onward)
-- [ ] **Dataset audit** — confirm from ma'am/the data itself:
-  - Exact label scheme (dementia vs control only, or staged?).
-  - Which languages are present.
-  - One recording per participant, or multiple?
-  - Exact task/prompt used per recording.
-  - Class distribution and any usable demographic metadata.
-  - Allowed storage/use constraints on the recordings.
+- [ ] **Dataset audit** — confirm from ma'am/the data itself (see Section 12 for the current confirmed/open breakdown; not fully closed out yet):
+  - Exact label scheme (dementia vs control only, or staged?). — folders only give binary; unexplained filename suffixes suggest possible severity info, **unconfirmed**.
+  - Which languages are present. — **unknown, no metadata shipped with this download.**
+  - One recording per participant, or multiple? — **confirmed: one recording per participant** (164 unique IDs, no duplicates).
+  - Exact task/prompt used per recording. — **unknown, no metadata shipped.**
+  - Class distribution and any usable demographic metadata. — **class distribution confirmed** (85 Dementia / 79 Normal); **no demographic metadata included.**
+  - Allowed storage/use constraints on the recordings. — **unknown, treat as sensitive by default until confirmed** (see Section 8).
 - [ ] Build participant-level train/val/test split (Section 8).
 - [ ] Build real audio-feature extraction pipeline (librosa-based).
 - [ ] Build/select an ASR pipeline for the languages actually present.
@@ -181,13 +181,14 @@ Frontend sends selected task/language + recorded audio → backend validates/sto
 
 ## 12. Open Questions / Immediate Checklist
 
-- [ ] Get dataset requirements/labels from ma'am.
-- [ ] Confirm exactly which languages are present.
-- [ ] Confirm one vs. multiple recordings per participant.
-- [ ] Confirm the exact task/prompt used for every recording.
-- [ ] Determine class distribution and available demographic metadata.
-- [ ] Determine allowed use/storage of recordings.
+- [ ] Get dataset requirements/labels from ma'am — specifically, what do the `-i`/`_i` and `_severe` filename suffixes on 24 `Dementia/` recordings mean (`data/adresso2021/Dementia/adrso078_severe.wav` etc.)? Is this severity info usable, or something else (task variant, recording quality flag)?
+- [ ] Confirm exactly which languages are present. (No metadata shipped with the current download — likely English given the ADReSSo source, but not confirmed.)
+- [x] Confirm one vs. multiple recordings per participant. — **One recording per participant**, confirmed by filename audit (164 unique `adrsoNNN` IDs, no duplicates across `Dementia`/`Normal`).
+- [ ] Confirm the exact task/prompt used for every recording. (No metadata shipped; ADReSSo is historically a picture-description task, but don't assume without confirmation.)
+- [x] Determine class distribution — **85 Dementia / 79 Normal**, confirmed. — [ ] available demographic metadata — **none shipped with this download**, still need to ask.
+- [ ] Determine allowed use/storage of recordings (data-use-agreement terms, retention limits).
 - [ ] Confirm branch ownership per module (Section 11).
+- [ ] Check whether the source Drive folder has more than this one zip part (the filename `adresso2021-...-1-001.zip` is Google Drive's split-export naming — there may be a metadata/transcript zip that didn't get downloaded).
 
 ## 13. Source
 
