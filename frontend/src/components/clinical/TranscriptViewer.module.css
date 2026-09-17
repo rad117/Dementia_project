@@ -1,0 +1,61 @@
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--slate);
+  white-space: nowrap;
+}
+
+.segments {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  background: var(--paper);
+}
+
+.segment {
+  font-size: 15px;
+  line-height: 1.8;
+  margin-bottom: var(--space-1);
+}
+
+.timestamp {
+  font-family: var(--font-technical);
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: var(--space-2);
+}
+
+.annotationLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.tag-filler {
+  background: var(--amber-soft);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.tag-repetition {
+  background: var(--violet-soft);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.tag-revision {
+  background: var(--cobalt-soft);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+.tag-concept {
+  border-bottom: 2px solid var(--green);
+}

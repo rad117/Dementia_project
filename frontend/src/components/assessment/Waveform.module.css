@@ -1,0 +1,16 @@
+.wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 64px;
+  width: 100%;
+}
+
+.bar {
+  width: 6px;
+  min-height: 4px;
+  border-radius: 3px;
+  background: var(--cobalt);
+  transition: height 90ms linear;
+}

@@ -1,0 +1,42 @@
+.mic {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--cobalt);
+  color: var(--white);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+  transition: background-color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+.mic:hover:not(:disabled) {
+  background: var(--cobalt-deep);
+}
+
+.mic:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recording {
+  background: var(--red);
+}
+
+.recording:hover:not(:disabled) {
+  background: #a83c3c;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .recording {
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 75, 75, 0.35); }
+  50% { box-shadow: 0 0 0 14px rgba(201, 75, 75, 0); }
+}

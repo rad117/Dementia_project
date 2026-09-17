@@ -1,0 +1,35 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+.positive {
+  color: var(--green);
+  background: var(--green-soft);
+  border-color: var(--green);
+}
+
+.attention {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: var(--amber);
+}
+
+.neutral {
+  color: var(--muted);
+  background: var(--paper);
+  border-color: var(--line);
+}
+
+.unknown {
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-color: var(--violet);
+}

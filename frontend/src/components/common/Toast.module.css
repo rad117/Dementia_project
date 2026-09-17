@@ -1,0 +1,34 @@
+.region {
+  position: fixed;
+  bottom: var(--space-5);
+  right: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 200;
+  max-width: min(360px, calc(100vw - var(--space-6)));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--ink);
+  color: var(--white);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  box-shadow: var(--shadow-medium);
+}
+
+.error {
+  background: var(--red);
+}
+
+.success {
+  background: var(--green);
+}
+
+.info {
+  background: var(--ink);
+}

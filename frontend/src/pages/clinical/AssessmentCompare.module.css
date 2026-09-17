@@ -1,0 +1,67 @@
+.header {
+  margin-bottom: var(--space-5);
+}
+
+.metricTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.metricTab {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--slate);
+}
+
+.metricTab:hover {
+  border-color: var(--cobalt);
+}
+
+.metricTabActive {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--white);
+}
+
+.chartPanel {
+  padding: var(--space-6);
+}
+
+.pointsRow {
+  display: flex;
+  gap: var(--space-6);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.pointStat {
+  min-width: 120px;
+}
+
+.pointLabel {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.pointValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tooltip {
+  background: var(--ink);
+  color: var(--white);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}

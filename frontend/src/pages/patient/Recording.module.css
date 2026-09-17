@@ -1,0 +1,51 @@
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-5);
+  padding: var(--space-7) var(--space-4);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.timer {
+  font-size: 36px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.statusText {
+  font-size: 18px;
+  color: var(--slate);
+}
+
+.buttonRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 320px;
+}
+
+.errorBox {
+  border: 1px solid var(--red);
+  background: var(--red-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  text-align: left;
+}
+
+.errorTitle {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: var(--space-2);
+}
+
+.errorText {
+  color: var(--slate);
+  font-size: 15px;
+  line-height: 1.5;
+}

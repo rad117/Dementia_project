@@ -1,0 +1,32 @@
+.wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-4);
+}
+
+.trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper);
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+
+.chevron {
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.chevron[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+.content {
+  padding: var(--space-4);
+  border-top: 1px solid var(--line);
+}

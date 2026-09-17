@@ -1,0 +1,25 @@
+.tile {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  background: var(--white);
+}
+
+.icon {
+  color: var(--cobalt);
+  margin-bottom: var(--space-3);
+}
+
+.value {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-weight: 600;
+}

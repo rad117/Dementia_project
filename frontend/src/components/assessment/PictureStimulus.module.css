@@ -1,0 +1,12 @@
+.frame {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}

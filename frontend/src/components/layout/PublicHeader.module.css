@@ -1,0 +1,43 @@
+.header {
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+}
+
+.logo {
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-6);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--slate);
+}
+
+.nav a:hover {
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+@media (max-width: 760px) {
+  .nav {
+    display: none;
+  }
+}

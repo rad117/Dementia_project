@@ -1,0 +1,30 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--slate);
+}
+
+.default {
+  border-color: var(--line);
+  color: var(--slate);
+}
+
+.accent {
+  border-color: var(--cobalt);
+  color: var(--cobalt-deep);
+  background: var(--cobalt-soft);
+}
+
+.demo {
+  border-color: var(--line-strong);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}

@@ -1,0 +1,31 @@
+.previousList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.previousRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  cursor: pointer;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.previousRow:hover {
+  border-color: var(--cobalt);
+}
+
+.previousMeta {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 13px;
+  color: var(--muted);
+  align-items: center;
+  flex-wrap: wrap;
+}

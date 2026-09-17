@@ -1,0 +1,33 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.list li {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  padding-left: var(--space-4);
+  position: relative;
+}
+
+.list li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--cobalt);
+}
+
+.note {
+  font-size: 13px;
+  color: var(--slate);
+  margin-bottom: var(--space-2);
+}
+
+.modelVersion {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--font-technical);
+}

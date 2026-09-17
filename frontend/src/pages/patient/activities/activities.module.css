@@ -1,0 +1,100 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.tile {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--line);
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.tileMatched {
+  background: var(--green-soft);
+  border-color: var(--green);
+  color: var(--green);
+  cursor: default;
+}
+
+.tileFlipped {
+  background: var(--cobalt-soft);
+  border-color: var(--cobalt);
+}
+
+.wordList {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.wordChip {
+  padding: var(--space-4);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--white);
+}
+
+.optionButton {
+  padding: var(--space-4);
+  border: 2px solid var(--line);
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--white);
+  cursor: pointer;
+}
+
+.optionButton:hover {
+  border-color: var(--cobalt);
+}
+
+.optionSelected {
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+}
+
+.optionCorrect {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+
+.optionIncorrect {
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+.resultCard {
+  text-align: center;
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+}
+
+.patternRow {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+  font-size: 40px;
+}

@@ -1,0 +1,35 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  margin: var(--space-6) 0;
+}
+
+.option {
+  padding: var(--space-5);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 64px;
+}
+
+.option:hover {
+  border-color: var(--cobalt);
+}
+
+.selected {
+  border-color: var(--cobalt);
+  background: var(--cobalt-soft);
+  color: var(--cobalt-deep);
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
