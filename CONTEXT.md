@@ -4,11 +4,11 @@
 
 ## 1. Status Snapshot
 
-- **As of:** 2026-09-13
-- **Repo:** `rad117/Dementia_project` (GitHub) — Phase 0 backend skeleton implemented and merged to `main`.
-- **Dataset:** ADReSSo 2021 received and extracted to `data/adresso2021/` (gitignored — raw audio is never committed, see Section 8). Partial audit done — see Section 12 for what's confirmed vs. still open. Headline: 85 `Dementia/` + 79 `Normal/` `.wav` files, one recording per participant, binary label only (no staged severity confirmed). No transcripts, metadata, or demographics shipped with this download. 24 `Dementia/` filenames carry an unexplained `-i`/`_i` suffix and one is `..._severe.wav` — **meaning not yet confirmed, do not build a severity feature or exclude/include these files on a guess.**
-- **Code:** Backend Phase 0 done — `backend/` is a working FastAPI app (`GET /health`, `POST /api/assessments` accepting multipart audio+language+task_id, returning the mock `AssessmentResult` JSON from Section 10 with `model_version: "mock-0.0"`). 6/6 tests passing. Frontend Phase 0 (task flow, mic recording, mock dashboard) **not started**. Real ML pipeline (`ml/`) **not started** — still mock-only.
-- **Next concrete action:** (1) get the `-i`/`_severe` suffix meaning, task/prompt used, languages present, and storage/consent terms from ma'am (Section 12); (2) build the frontend Phase 0 pieces against the now-live mock API; (3) once labels are confirmed, start the Phase 1 dataset audit's remaining items and the real feature-extraction pipeline.
+- **As of:** 2026-09-20
+- **Repo:** `rad117/Dementia_project` (GitHub) — Phase 0 backend skeleton, frontend, and a real ML baseline pipeline are all implemented and merged to `main`.
+- **Dataset:** ADReSSo 2021 received and extracted to `data/adresso2021/` (gitignored — raw audio is never committed, see Section 8). Headline: 85 `Dementia/` + 79 `Normal/` `.wav` files, one recording per participant, binary label only. No transcripts, task/prompt documentation, or demographics shipped with this download — language is also still unconfirmed. 23 `Dementia/` filenames carry a `-i`/`_i` suffix and one is `..._severe.wav` — **meaning confirmed by the project supervisor (2026-09-20): `-i`/`_i` means the interviewer's voice was edited out of the recording (a preprocessing confound for pause/silence-based features, tracked via a manifest column and checked in training — see `docs/dataset_audit.md`); `_severe` means a confirmed severe-dementia case. This is a single (N=1) data point — not a basis for any severity-prediction feature or model (see Section 8).** Full aggregate audit: `docs/dataset_audit.md`.
+- **Code:** Backend Phase 1 done — `backend/` now persists assessments in SQLite and serves the 3-step contract the frontend expects (`POST /assessments` → `POST /assessments/{id}/audio` → `GET /assessments/{id}/results`), backed by a real trained acoustic baseline model (see `ml/`); the original mock endpoint (`POST /api/assessments`, `model_version: "mock-0.0"`) is kept as a legacy demo/comparison harness. ML pipeline (`ml/`) Phase 1 first pass done — acoustics-only baseline (Logistic Regression + Random Forest, participant-level split, full metric set) trained on the real dataset; artifacts in `models/baseline_v1/` (gitignored). No ASR/NLP layer yet.
+- **Next concrete action:** (1) get language, exact task/prompt, and storage/consent terms from ma'am (Section 12 — still open); (2) once language is confirmed, add the ASR/NLP feature layer and retrain; (3) revisit the `needs_clinician_review` risk-score threshold (currently a placeholder, no clinical basis) once real evaluation results accumulate.
 
 ## 2. Project Summary
 
@@ -123,25 +123,25 @@ project/
 ### Phase 0 — Before dataset arrives (2026-09-12, today)
 - [x] Read source PDF, assess viability, write this context doc.
 - [x] Scaffold repo folder structure (empty placeholders).
-- [ ] Build frontend assessment flow with mock tasks + browser mic recording.
+- [x] Build frontend assessment flow with mock tasks + browser mic recording. — React app under `frontend/`, `useRecorder` hook wraps MediaRecorder.
 - [x] Build backend file-upload endpoint (FastAPI skeleton). — combined with mock inference into one endpoint, see below.
 - [x] Build a mock ML inference endpoint returning structured JSON (see Section 10 for shape). — `POST /api/assessments` in `backend/routes/assessments.py`; mock logic in `backend/services/mock_inference.py`. Full setup/run/test instructions in `backend/README.md`.
-- [ ] Build a mock clinician dashboard + longitudinal-history UI off that mock JSON.
+- [x] Build a mock clinician dashboard + longitudinal-history UI off that mock JSON. — `frontend/src/pages/clinical/*`, currently against `mockApi.js`.
 - [ ] Set up GitHub branching convention and module ownership (see Section 11).
 
 ### Phase 1 — Dataset arrives (2026-09-13 onward)
-- [ ] **Dataset audit** — confirm from ma'am/the data itself (see Section 12 for the current confirmed/open breakdown; not fully closed out yet):
-  - Exact label scheme (dementia vs control only, or staged?). — folders only give binary; unexplained filename suffixes suggest possible severity info, **unconfirmed**.
-  - Which languages are present. — **unknown, no metadata shipped with this download.**
+- [x] **Dataset audit** — confirm from ma'am/the data itself (see Section 12 and `docs/dataset_audit.md` for the full breakdown):
+  - Exact label scheme (dementia vs control only, or staged?). — **binary only**; the `-i`/`_i`/`_severe` filename suffixes are confirmed (interviewer-removed / one severe case), not a usable severity scheme (N=1).
+  - Which languages are present. — **still unknown, no metadata shipped with this download.**
   - One recording per participant, or multiple? — **confirmed: one recording per participant** (164 unique IDs, no duplicates).
-  - Exact task/prompt used per recording. — **unknown, no metadata shipped.**
+  - Exact task/prompt used per recording. — **still unknown, no metadata shipped.**
   - Class distribution and any usable demographic metadata. — **class distribution confirmed** (85 Dementia / 79 Normal); **no demographic metadata included.**
-  - Allowed storage/use constraints on the recordings. — **unknown, treat as sensitive by default until confirmed** (see Section 8).
-- [ ] Build participant-level train/val/test split (Section 8).
-- [ ] Build real audio-feature extraction pipeline (librosa-based).
-- [ ] Build/select an ASR pipeline for the languages actually present.
-- [ ] Build NLP/semantic feature extraction, validated per language.
-- [ ] Train first interpretable baseline (Logistic Regression / SVM / Random Forest), evaluate with full metric set (Section 8), replacing the mock inference endpoint.
+  - Allowed storage/use constraints on the recordings. — **still unknown, treat as sensitive by default until confirmed** (see Section 8).
+- [x] Build participant-level train/val/test split (Section 8). — `ml/preprocessing/split.py`, `GroupShuffleSplit`/`GroupKFold` keyed on participant ID.
+- [x] Build real audio-feature extraction pipeline (librosa-based). — `ml/features/acoustic.py` (pauses, pitch, energy, MFCCs); handles both dataset `.wav` files and browser-uploaded WebM/Opus via a PyAV fallback.
+- [ ] Build/select an ASR pipeline for the languages actually present. — blocked on language confirmation.
+- [ ] Build NLP/semantic feature extraction, validated per language. — blocked on language confirmation.
+- [x] Train first interpretable baseline (Logistic Regression / Random Forest), evaluate with full metric set (Section 8), replacing the mock inference endpoint. — `ml/training/train_baseline.py`, artifacts in `models/baseline_v1/` (gitignored); wired into the backend's real endpoints via `ml/inference/predict.py` (Section 10). Acoustics-only — ASR/NLP layer is a follow-up once language is confirmed.
 
 ### Phase 2 — Iterate
 - [ ] Compare classical baselines (add Gradient Boosting/XGBoost); tune only after a clean baseline exists.
@@ -181,7 +181,7 @@ Frontend sends selected task/language + recorded audio → backend validates/sto
 
 ## 12. Open Questions / Immediate Checklist
 
-- [ ] Get dataset requirements/labels from ma'am — specifically, what do the `-i`/`_i` and `_severe` filename suffixes on 24 `Dementia/` recordings mean (`data/adresso2021/Dementia/adrso078_severe.wav` etc.)? Is this severity info usable, or something else (task variant, recording quality flag)?
+- [x] Get dataset requirements/labels from ma'am — **confirmed 2026-09-20**: `-i`/`_i` (23 files) means the interviewer's voice was edited out of the recording; `_severe` (`data/adresso2021/Dementia/adrso078_severe.wav`) means a confirmed severe-dementia case. Both are now tracked as manifest columns (`instructor_removed`, `severity` — see `ml/preprocessing/manifest.py`) rather than used to include/exclude files. The single severe example is not usable as a severity-model label (N=1) — see Section 8.
 - [ ] Confirm exactly which languages are present. (No metadata shipped with the current download — likely English given the ADReSSo source, but not confirmed.)
 - [x] Confirm one vs. multiple recordings per participant. — **One recording per participant**, confirmed by filename audit (164 unique `adrsoNNN` IDs, no duplicates across `Dementia`/`Normal`).
 - [ ] Confirm the exact task/prompt used for every recording. (No metadata shipped; ADReSSo is historically a picture-description task, but don't assume without confirmation.)

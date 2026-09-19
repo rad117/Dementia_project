@@ -13,18 +13,29 @@ export const pictureDescriptionTask = {
   prompt: "Describe what you see in this picture.",
   // Original, non-photographic composed scene — deliberately neutral and
   // culturally generic, avoiding any specific copyrighted clinical stimulus.
+  // Structural complexity (multiple characters, two independent mishaps,
+  // foreground/background depth) is deliberately matched to standardized
+  // picture-description stimuli used in speech-based cognitive research, so
+  // elicited speech length/complexity stays comparable to the training data
+  // without reusing any copyrighted content.
   imageAlt:
-    "An illustrated kitchen scene: a child reaches for a jar on a high shelf while standing on a wobbling stool, a woman dries a dish nearby without noticing, and water overflows from a sink onto the floor.",
+    "An illustrated kitchen scene: a boy on a tilting three-legged stool reaches into a cookie jar on a high shelf while a girl below reaches up toward him, a woman dries a dish nearby without noticing water overflowing from a sink, a cat reacts to the spreading puddle, and a tree is visible through a window in the background.",
   expectedConcepts: [
     "kitchen",
-    "child",
+    "boy",
+    "girl",
     "stool",
+    "tilting",
     "reaching",
-    "jar",
+    "cookie jar",
     "shelf",
     "woman",
+    "drying dish",
     "sink",
     "overflowing water",
+    "cat",
+    "window",
+    "tree",
     "falling",
   ],
   estimatedMinutes: "5–8 minutes",
