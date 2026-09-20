@@ -39,9 +39,14 @@ Both are tracked as manifest columns (`instructor_removed`, `severity`) rather t
 
 Training (`ml.training.train_baseline`) compares pause-related acoustic features between `instructor_removed=True` (n=23) and unedited (n=62) recordings **within the Dementia class only**, since editing could distort silence/pause features independent of cognitive signal. Result from the first baseline run (Mann-Whitney U, two-sided): no statistically significant difference on `pause_count`, `total_pause_duration_seconds`, `pause_ratio`, or `voiced_rate_per_min` (all p > 0.3). Statistical power is limited at this sample size (23 vs. 62) — this is reassuring, not conclusive; re-check this report whenever the training pipeline is re-run. Full numbers are written to `models/baseline_v1/confound_report.json` (gitignored, regenerated each training run).
 
+## Language and task (confirmed by project supervisor, 2026-09-20)
+
+- **Language:** English-only.
+- **Task/prompt:** Cookie Theft picture description.
+
+Corroborated by real transcripts produced by the new ASR layer (`ml/asr/transcribe.py`) — sampled outputs describe a cookie jar, an overflowing sink, and a housewife/kids scene, matching the Cookie Theft picture.
+
 ## Still open (per CONTEXT.md §12)
 
-- Language(s) present — unconfirmed.
-- Exact task/prompt per recording — unconfirmed (ADReSSo is historically picture-description, not verified for this download).
 - Demographic metadata — none shipped.
 - Storage/use/consent constraints — unconfirmed, treated as sensitive by default.

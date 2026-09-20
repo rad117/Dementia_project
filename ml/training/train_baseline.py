@@ -7,8 +7,9 @@ participant-level train/test split -> Logistic Regression + Random Forest,
 each cross-validated with GroupKFold -> full metric report on the held-out
 test split for both models -> artifacts saved under models/baseline_v1/.
 
-No ASR/NLP layer this round (language is still unconfirmed with the
-project supervisor) -- see CONTEXT.md Sections 5, 9, 12.
+Acoustics-only this round -- ASR (ml/asr/) now exists standalone but isn't
+fused in here yet; NLP/semantic layer (ml/nlp/) still unbuilt. See
+CONTEXT.md Sections 5, 9, 12.
 """
 
 import argparse

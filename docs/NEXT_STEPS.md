@@ -11,29 +11,29 @@ MVP definition (CONTEXT.md §4): language selection → standardized task shown 
 ## 2. Where things stand today
 
 - **Backend (Phase 1, done):** FastAPI + SQLite persistence (`backend/db.py`), real 3-step contract (`POST /assessments` → `POST /assessments/{id}/audio` → `GET /assessments/{id}/results`) backed by actual model inference. The original mock endpoint (`POST /api/assessments`, `model_version: mock-0.0`) is kept only as a legacy comparison harness.
-- **ML (Phase 1 first pass, done):** acoustics-only baseline (Logistic Regression + Random Forest) trained on ADReSSo 2021 with a participant-level split and full metric set (`ml/`, artifacts in `models/baseline_v1/`, gitignored). No ASR or NLP/semantic layer yet — acoustic features only.
+- **ML (Phase 1 first pass, done):** acoustics-only baseline (Logistic Regression + Random Forest) trained on ADReSSo 2021 with a participant-level split and full metric set (`ml/`, artifacts in `models/baseline_v1/`, gitignored). **ASR layer done** (`ml/asr/transcribe.py`, faster-whisper CPU/English `small.en`, plus `ml/asr/build_transcript_cache.py` for batch transcription) — validated against real recordings. **NLP/semantic layer done** (`ml/nlp/linguistic.py` + `ml/nlp/build_linguistic_cache.py`) — lexical diversity, pronoun/filler ratios, repetition, Cookie Theft concept coverage, TF-IDF sentence-coherence proxy. Both ASR and NLP are standalone, not yet fused into `train_baseline.py`.
 - **Frontend:** full assessment flow (login → language → instructions → picture task → recording → processing → results) wired to the real backend, validated end-to-end live in-browser (real `baseline-logreg-v1` inference, not mock).
 - **Auth:** `backend/routes/demo_auth.py` — demo-only stubs (any non-empty code logs in as a hardcoded participant) that exist purely to unblock frontend/ML integration testing. **Not real authentication.**
 - **Stimulus image:** the picture-description task uses an original custom illustration (`frontend/src/components/assessment/PictureStimulus.jsx`), reworked this session to match the *structural* complexity (multiple characters, two simultaneous mishaps, foreground/background depth) of the Cookie Theft picture every ADReSSo training recording actually describes — without reproducing that copyrighted image. See §5 for the caveat this leaves open.
-- **Dataset:** audited (`docs/dataset_audit.md`) — 164 recordings (85 Dementia / 79 Normal), one per participant, 44.1kHz throughout, filename-suffix confounds (`-i`/`_i`, `_severe`) checked and found not statistically significant on pause-related features. Language and exact task/prompt are still **unconfirmed** by the project supervisor.
+- **Dataset:** audited (`docs/dataset_audit.md`) — 164 recordings (85 Dementia / 79 Normal), one per participant, 44.1kHz throughout, filename-suffix confounds (`-i`/`_i`, `_severe`) checked and found not statistically significant on pause-related features. **Language (English-only) and task (Cookie Theft picture description) confirmed by the project supervisor (2026-09-20)** — real ASR transcripts read as coherent Cookie Theft descriptions, corroborating the confirmation.
 
 ## 3. Blocking questions for the supervisor (CONTEXT.md §12)
 
-These gate real ML progress — no amount of engineering substitutes for them:
+Two of the four are now resolved; two remain open:
 
-- [ ] Exact language(s) present in the ADReSSo download (assumed English, not confirmed).
-- [ ] Exact task/prompt used for every recording (historically Cookie Theft picture description for ADReSSo, but not confirmed for *this* download).
+- [x] Exact language(s) present in the ADReSSo download — **English-only, confirmed 2026-09-20**.
+- [x] Exact task/prompt used for every recording — **Cookie Theft picture description, confirmed 2026-09-20**.
 - [ ] Any demographic metadata available (none shipped so far).
 - [ ] Allowed storage/use/consent terms for the recordings (treat as sensitive by default until confirmed).
 
-**ASR and NLP/semantic feature work cannot meaningfully start until language is confirmed** — don't build a pipeline for a guessed language.
+The remaining two don't block ASR/NLP engineering work, only real (non-demo) participant data handling later.
 
 ## 4. Ordered next steps
 
-1. **Get the four supervisor answers above.** Blocking, no-code item — do this first.
-2. **Build the ASR layer** for the confirmed language(s) (`ml/asr/`, currently unimplemented per the repo structure in CONTEXT.md §7).
-3. **Build the NLP/semantic feature layer**, validated per language rather than assumed from English NLP norms (`ml/nlp/`, currently unimplemented). Don't blindly translate transcripts and assume linguistic features are preserved (CONTEXT.md §8).
-4. **Retrain**, fusing acoustic + ASR + NLP features. Re-run the full metric set — sensitivity/recall, specificity, precision, F1, ROC-AUC, confusion matrix, class distribution — broken down by language/task/demographics where sample size allows (CONTEXT.md §8).
+1. ~~Get the four supervisor answers above.~~ **Language and task confirmed (2026-09-20).** Demographic metadata and consent terms remain open but don't block engineering work below.
+2. ~~**Build the ASR layer**~~ **Done** — `ml/asr/transcribe.py` (faster-whisper, CPU, English `small.en` checkpoint, extensible to other languages via explicit `language`/`model_size` params) + `ml/asr/build_transcript_cache.py` (resumable batch transcription, cache at `data/adresso2021_transcripts_cache.csv`). Standalone — not yet fused into `train_baseline.py`.
+3. ~~**Build the NLP/semantic feature layer**~~ **Done** — `ml/nlp/linguistic.py` (English-only, Cookie Theft-specific concept list; TF-IDF coherence proxy chosen over a neural embedding to avoid a heavy new dependency — see module docstring) + `ml/nlp/build_linguistic_cache.py` (reads the ASR transcript cache, writes `data/adresso2021_linguistic_cache.csv`).
+4. **Retrain**, fusing acoustic + ASR + NLP features. This means wiring `ml/asr/`/`ml/nlp/` into `ml/training/train_baseline.py`'s `_build_or_load_features()` (merge transcript + linguistic dicts alongside acoustic ones, same pattern) and into `ml/inference/predict.py` (populate `linguistic_features`, currently hardcoded `{}`, and use the already-accepted `task_id`/`language` params). Re-run the full metric set — sensitivity/recall, specificity, precision, F1, ROC-AUC, confusion matrix, class distribution — broken down by language/task/demographics where sample size allows (CONTEXT.md §8). **Not yet started** — the next concrete step.
 5. **Validate the reworked picture stimulus empirically.** Record a handful of control descriptions against the new illustration and sanity-check the acoustic feature/risk-score distribution isn't skewed relative to the ADReSSo-trained baseline. This is the domain-shift mitigation discussed this session — matching structural complexity narrows the gap but doesn't prove it's closed.
 6. **Revisit the `needs_clinician_review` risk-score threshold** — currently a placeholder with no clinical basis (CONTEXT.md §1). Set this from real evaluation results, not intuition.
 7. **Replace `backend/routes/demo_auth.py` with real authentication** before handling any real participant data.
