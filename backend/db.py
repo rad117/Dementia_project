@@ -61,6 +61,17 @@ def get_assessment_row(assessment_id: str, db_path: Path | None = None) -> dict 
         return dict(row) if row is not None else None
 
 
+def list_assessments_by_patient(patient_id: str, db_path: Path | None = None) -> list[dict]:
+    with sqlite3.connect(db_path or DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM assessments WHERE patient_id = ? AND status = 'complete' "
+            "ORDER BY created_at DESC",
+            (patient_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
 def save_result_row(
     assessment_id: str,
     *,

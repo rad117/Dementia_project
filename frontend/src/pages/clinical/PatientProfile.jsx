@@ -39,7 +39,7 @@ export default function ClinicalPatientProfile() {
         setHistory(bundles);
       })
       .catch((err) => {
-        if (!cancelled) setError(err.message === "NOT_FOUND" ? "NOT_FOUND" : "Something went wrong loading this patient.");
+        if (!cancelled) setError(err.status === 404 || err.message === "NOT_FOUND" ? "NOT_FOUND" : "Something went wrong loading this patient.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
