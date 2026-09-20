@@ -9,8 +9,13 @@ model's feature_names actually require columns from those layers -- an
 acoustics-only model (e.g. models/baseline_v1) never triggers Whisper
 transcription, so its per-request latency is unchanged. A fused model
 (e.g. models/baseline_v2) does, which is meaningfully slower per request
-(seconds of CPU transcription per upload) -- that tradeoff should be a
-deliberate choice of which model_dir the backend points at, not implicit.
+(seconds of CPU transcription per upload).
+
+Decision made (2026-09-20): models/baseline_v2 (fused) is the default
+model_dir below and therefore what the backend serves by default, trading
+that per-request ASR latency for a substantial cross-validated ROC-AUC
+gain over baseline_v1. models/baseline_v1 remains available as a fast
+acoustics-only fallback by passing model_dir explicitly.
 """
 
 import json
@@ -52,7 +57,7 @@ def predict(
     *,
     task_id: str,
     language: str,
-    model_dir: Path = Path("models/baseline_v1"),
+    model_dir: Path = Path("models/baseline_v2"),
 ) -> dict:
     """Runs the trained baseline on a raw audio upload -- acoustics-only or
     acoustic+ASR+NLP fused, depending on what model_dir's feature_names
