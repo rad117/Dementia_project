@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from backend import db
 from backend.schemas.assessment import (
@@ -10,7 +10,6 @@ from backend.schemas.assessment import (
     AssessmentCreateResponse,
     AssessmentResult,
 )
-from backend.services.mock_inference import generate_mock_result
 from ml.inference.predict import AudioProcessingError, predict
 
 router = APIRouter()
@@ -19,20 +18,6 @@ router = APIRouter()
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
-
-
-@router.post("/api/assessments", response_model=AssessmentResult)
-async def create_assessment_legacy_mock(
-    audio: UploadFile = File(...),
-    language: str = Form(...),
-    task_id: str = Form(...),
-) -> AssessmentResult:
-    # Legacy/demo-only endpoint, superseded by the 3-step contract below
-    # (POST /assessments -> POST /assessments/{id}/audio -> GET
-    # /assessments/{id}/results). Kept as a zero-dependency mock-vs-real
-    # comparison harness and curl smoke test (see backend/README.md).
-    audio_bytes = await audio.read()
-    return generate_mock_result(audio_bytes, language, task_id)
 
 
 @router.post("/assessments", response_model=AssessmentCreateResponse, status_code=201)
