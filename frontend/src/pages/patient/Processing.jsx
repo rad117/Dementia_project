@@ -1,100 +1,153 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useAssessment } from "../../app/AssessmentContext.jsx";
-import { uploadAssessmentAudio, getAssessmentResults } from "../../services/index.js";
-import ErrorState from "../../components/common/ErrorState.jsx";
-import pageStyles from "./patientPages.module.css";
+import {
+    getAssessmentResults,
+    uploadAssessmentAudio,
+} from "../../services/index.js";
 import styles from "./Processing.module.css";
 
-const STEPS = ["Uploading recording", "Preparing speech", "Analyzing language", "Preparing results"];
+const STEPS = [
+    "Uploading recording",
+    "Preparing speech",
+    "Analyzing language",
+    "Preparing assessment",
+];
+
+const MAX_RESULT_ATTEMPTS = 12;
+const RESULT_POLL_DELAY_MS = 1000;
 
 function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export default function PatientProcessing() {
-  const { assessmentId, audioBlob, setResults } = useAssessment();
-  const navigate = useNavigate();
-  const [stepIndex, setStepIndex] = useState(0);
-  const [failed, setFailed] = useState(false);
-  const attemptRef = useRef(0);
+export default function Processing() {
+    const navigate = useNavigate();
+    const { assessmentId, audioBlob, setResults } = useAssessment();
+    const [step, setStep] = useState(0);
+    const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!assessmentId || !audioBlob) {
-      navigate("/patient/recording", { replace: true });
-      return;
-    }
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assessmentId, audioBlob]);
+    useEffect(() => {
+        if (!assessmentId || !audioBlob) {
+            navigate("/patient/task", { replace: true });
+            return;
+        }
 
-  async function run() {
-    const myAttempt = ++attemptRef.current;
-    setFailed(false);
-    setStepIndex(0);
-    try {
-      await Promise.all([uploadAssessmentAudio(assessmentId, audioBlob), wait(1100)]);
-      if (attemptRef.current !== myAttempt) return;
-      setStepIndex(1);
-      await wait(800);
-      if (attemptRef.current !== myAttempt) return;
-      setStepIndex(2);
-      await wait(800);
-      if (attemptRef.current !== myAttempt) return;
-      setStepIndex(3);
-      const results = await getAssessmentResults(assessmentId);
-      if (attemptRef.current !== myAttempt) return;
-      setResults(results);
-      await wait(500);
-      if (attemptRef.current !== myAttempt) return;
-      navigate("/patient/complete");
-    } catch {
-      if (attemptRef.current === myAttempt) setFailed(true);
-    }
-  }
+        let cancelled = false;
 
-  if (!assessmentId || !audioBlob) return null;
+        async function waitForResults() {
+            for (let attempt = 0; attempt < MAX_RESULT_ATTEMPTS; attempt += 1) {
+                const results = await getAssessmentResults(assessmentId);
 
-  if (failed) {
-    return (
-      <div className={pageStyles.screen}>
-        <h1 className={pageStyles.greeting}>Processing</h1>
-        <ErrorState
-          title="We couldn't reach the analysis service"
-          description="Your assessment has not been lost. Please try again."
-          onRetry={run}
-        />
-      </div>
-    );
-  }
+                if (cancelled) return;
 
-  return (
-    <div className={pageStyles.screen}>
-      <h1 className={pageStyles.greeting}>Processing your assessment</h1>
-      <div className={styles.stage}>
-        <div className={styles.spinner} role="status" aria-label="Processing" />
-        <ol className={styles.steps}>
-          {STEPS.map((step, i) => {
-            const done = i < stepIndex;
-            const active = i === stepIndex;
-            return (
-              <li
-                key={step}
-                className={`${styles.step} ${done ? styles.stepDone : ""} ${active ? styles.stepActive : ""}`}
-              >
-                <span
-                  className={`${styles.stepMarker} ${done ? styles.stepMarkerDone : ""} ${active ? styles.stepMarkerActive : ""}`}
-                  aria-hidden="true"
-                >
-                  {done && <Check size={12} />}
-                </span>
-                {step}
-              </li>
+                if (results?.features) {
+                    setResults(results);
+                    return;
+                }
+
+                await wait(RESULT_POLL_DELAY_MS);
+            }
+
+            throw new Error(
+                "Your recording was uploaded, but the assessment results are taking longer than expected. Please try again."
             );
-          })}
-        </ol>
-      </div>
-    </div>
-  );
+        }
+
+        async function run() {
+            try {
+                setStep(0);
+
+                await uploadAssessmentAudio(assessmentId, audioBlob);
+
+                if (cancelled) return;
+
+                setStep(1);
+                await wait(350);
+
+                if (cancelled) return;
+
+                setStep(2);
+                await wait(350);
+
+                if (cancelled) return;
+
+                setStep(3);
+                await waitForResults();
+
+                if (!cancelled) {
+                    navigate("/patient/complete");
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setError(
+                        e.message || "We couldn't process this recording."
+                    );
+                }
+            }
+        }
+
+        run();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        assessmentId,
+        audioBlob,
+        navigate,
+        setResults,
+    ]);
+
+    if (error) {
+        return (
+            <div className="memora-flow">
+                <div className="memora-flow-head">
+                    <p className="memora-kicker">Assessment</p>
+                    <h1>Recording could not be processed</h1>
+                    <p>{error}</p>
+                </div>
+
+                <button
+                    className="memora-retry"
+                    onClick={() => window.location.reload()}
+                >
+                    Try again
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="memora-flow">
+            <div className="memora-flow-head">
+                <p className="memora-kicker">Assessment</p>
+                <h1>Processing your recording</h1>
+                <p>This may take a moment.</p>
+            </div>
+
+            <div className={styles.panel}>
+                {STEPS.map((label, i) => (
+                    <div
+                        className={`${styles.row} ${i === step ? styles.current : ""
+                            }`}
+                        key={label}
+                    >
+                        <span className={styles.icon}>
+                            {i < step ? (
+                                <Check size={17} />
+                            ) : i === step ? (
+                                <span className={styles.dot} />
+                            ) : null}
+                        </span>
+
+                        <span>{label}</span>
+
+                        {i === step && <small>In progress</small>}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }

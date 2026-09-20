@@ -5,8 +5,8 @@ export default function AuthLayout() {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <Link to="/" className={styles.logo}>
-          CognitiveAssist
+        <Link to="/" className={styles.logo} aria-label="Memora Home">
+          Memora
         </Link>
       </header>
       <main className={styles.content}>

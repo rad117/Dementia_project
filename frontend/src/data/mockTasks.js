@@ -42,14 +42,14 @@ export const pictureDescriptionTask = {
 };
 
 export const supportedLanguages = [
-  { code: "en", label: "English" },
-  { code: "hi", label: "Hindi" },
-  { code: "mr", label: "Marathi" },
-  { code: "ta", label: "Tamil" },
-  { code: "bn", label: "Bengali" },
-  { code: "te", label: "Telugu" },
-  { code: "ur", label: "Urdu" },
-  { code: "kn", label: "Kannada" },
+  { code: "en", label: "English", native: "English" },
+  { code: "hi", label: "Hindi", native: "हिन्दी" },
+  { code: "mr", label: "Marathi", native: "मराठी" },
+  { code: "ta", label: "Tamil", native: "தமிழ்" },
+  { code: "bn", label: "Bengali", native: "বাংলা" },
+  { code: "te", label: "Telugu", native: "తెలుగు" },
+  { code: "ur", label: "Urdu", native: "اُردُو" },
+  { code: "kn", label: "Kannada", native: "ಕನ್ನಡ" },
 ];
 
 // Optional cognitive activities — extensions, not the core screening model.
