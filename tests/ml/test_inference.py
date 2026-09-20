@@ -20,12 +20,12 @@ _EXPECTED_KEYS = {
 }
 
 
-def _write_dummy_model(model_dir):
+def _write_dummy_model(model_dir, feature_names=("duration_seconds",)):
     model_dir.mkdir(parents=True)
     clf = DummyClassifier(strategy="constant", constant=1)
-    clf.fit([[0.0], [1.0]], [0, 1])
+    clf.fit([[0.0] * len(feature_names), [1.0] * len(feature_names)], [0, 1])
     joblib.dump(clf, model_dir / "pipeline_dummy.joblib")
-    (model_dir / "feature_names.json").write_text(json.dumps(["duration_seconds"]))
+    (model_dir / "feature_names.json").write_text(json.dumps(list(feature_names)))
     (model_dir / "metadata.json").write_text(
         json.dumps({"selected_model": "dummy", "model_version": "test-dummy-v0"})
     )
@@ -80,3 +80,66 @@ def test_predict_propagates_audio_processing_error(tmp_path):
 
     with pytest.raises(AudioProcessingError):
         predict(b"not audio", task_id="cookie-theft", language="en", model_dir=model_dir)
+
+
+def test_predict_acoustic_only_model_never_calls_asr(tmp_path, monkeypatch):
+    """An acoustics-only model's feature_names never need ASR/NLP columns,
+    so predict() must not call transcribe() at all -- this is what keeps
+    models/baseline_v1's per-request latency unchanged."""
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("transcribe() should not be called for an acoustics-only model")
+
+    monkeypatch.setattr("ml.inference.predict.transcribe", _fail_if_called)
+
+    model_dir = tmp_path / "dummy_model"
+    _write_dummy_model(model_dir)
+
+    result = predict(_sine_wave_bytes(), task_id="cookie-theft", language="en", model_dir=model_dir)
+
+    assert result["linguistic_features"] == {}
+
+
+def test_predict_fused_model_calls_asr_and_nlp(tmp_path, monkeypatch):
+    fused_feature_names = ["duration_seconds", "asr_word_count", "type_token_ratio"]
+
+    def _fake_transcribe(audio, *, language):
+        return {
+            "transcript_text": "the boy is stealing cookies",
+            "word_count": 5,
+            "avg_logprob": -0.3,
+            "no_speech_prob": 0.1,
+            "duration_seconds": 1.0,
+        }
+
+    def _fake_extract_linguistic_features(transcript_text):
+        return {"type_token_ratio": 1.0, "word_count": 5}
+
+    monkeypatch.setattr("ml.inference.predict.transcribe", _fake_transcribe)
+    monkeypatch.setattr(
+        "ml.inference.predict.extract_linguistic_features", _fake_extract_linguistic_features
+    )
+
+    model_dir = tmp_path / "fused_model"
+    _write_dummy_model(model_dir, feature_names=fused_feature_names)
+
+    result = predict(_sine_wave_bytes(), task_id="cookie-theft", language="en", model_dir=model_dir)
+
+    assert result["linguistic_features"]["transcript_text"] == "the boy is stealing cookies"
+    assert result["linguistic_features"]["type_token_ratio"] == 1.0
+    assert isinstance(result["risk_score"], float)
+
+
+def test_predict_fused_model_wraps_transcription_error(tmp_path, monkeypatch):
+    from ml.asr.transcribe import TranscriptionError
+
+    def _fake_transcribe(audio, *, language):
+        raise TranscriptionError("decode failed")
+
+    monkeypatch.setattr("ml.inference.predict.transcribe", _fake_transcribe)
+
+    model_dir = tmp_path / "fused_model"
+    _write_dummy_model(model_dir, feature_names=["duration_seconds", "asr_word_count"])
+
+    with pytest.raises(AudioProcessingError):
+        predict(_sine_wave_bytes(), task_id="cookie-theft", language="en", model_dir=model_dir)

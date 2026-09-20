@@ -47,7 +47,10 @@ METADATA_COLUMNS = {
     "label_binary",
     "instructor_removed",
     "severity",
+    "transcript_text",
 }
+ASR_CACHE_PATH = Path("data/adresso2021_transcripts_cache.csv")
+LINGUISTIC_CACHE_PATH = Path("data/adresso2021_linguistic_cache.csv")
 _PAUSE_RELATED_COLUMNS = [
     "pause_count",
     "total_pause_duration_seconds",
@@ -71,6 +74,29 @@ def _build_or_load_features(manifest: pd.DataFrame, cache_path: Path, *, force: 
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     features_df.to_csv(cache_path, index=False)
+    return features_df
+
+
+def _merge_asr_nlp_features(features_df: pd.DataFrame) -> pd.DataFrame:
+    """Left-merges the standalone ASR transcript cache
+    (ml/asr/build_transcript_cache.py) and NLP linguistic cache
+    (ml/nlp/build_linguistic_cache.py) onto the acoustic features_df, keyed
+    on filepath. Missing caches leave features_df untouched (acoustic-only
+    training still works, matching pre-ASR/NLP behavior); rows present in
+    the acoustic set but absent from a cache (e.g. a batch still in
+    progress, or a transcript with no usable words) get NaN and must be
+    dropped by the caller before fitting -- sklearn doesn't accept NaN.
+
+    ASR's own word_count is renamed asr_word_count to avoid colliding with
+    the NLP layer's more carefully tokenized word_count.
+    """
+    if ASR_CACHE_PATH.exists():
+        transcripts = pd.read_csv(ASR_CACHE_PATH).drop(columns=["participant_id"])
+        transcripts = transcripts.rename(columns={"word_count": "asr_word_count"})
+        features_df = features_df.merge(transcripts, on="filepath", how="left")
+    if LINGUISTIC_CACHE_PATH.exists():
+        linguistic = pd.read_csv(LINGUISTIC_CACHE_PATH).drop(columns=["participant_id"])
+        features_df = features_df.merge(linguistic, on="filepath", how="left")
     return features_df
 
 
@@ -135,6 +161,8 @@ def run_training(
     cv_splits: int = 5,
     random_state: int = 42,
     force_recompute_features: bool = False,
+    use_asr_nlp_features: bool = False,
+    model_version_tag: str = "v1",
 ) -> dict:
     manifest = build_manifest(data_root)
     if len(manifest) == 0:
@@ -142,6 +170,15 @@ def run_training(
 
     features_df = _build_or_load_features(manifest, cache_path, force=force_recompute_features)
     confound_report = _confound_check(features_df)
+
+    if use_asr_nlp_features:
+        features_df = _merge_asr_nlp_features(features_df)
+        engineered_columns = [c for c in features_df.columns if c not in METADATA_COLUMNS]
+        n_before = len(features_df)
+        features_df = features_df.dropna(subset=engineered_columns)
+        n_dropped = n_before - len(features_df)
+        if n_dropped:
+            print(f"Dropped {n_dropped}/{n_before} rows missing ASR/NLP features (incomplete cache)")
 
     train_df, test_df = participant_train_test_split(
         features_df, test_size=test_size, random_state=random_state
@@ -190,7 +227,7 @@ def run_training(
     (model_dir / "confound_report.json").write_text(json.dumps(confound_report, indent=2))
     metadata = {
         "selected_model": selected_name,
-        "model_version": f"baseline-{selected_name}-v1",
+        "model_version": f"baseline-{selected_name}-{model_version_tag}",
         "trained_at": datetime.now(UTC).isoformat(),
         "sklearn_version": sklearn.__version__,
         "n_train": len(train_df),
@@ -215,6 +252,12 @@ def main() -> None:
     parser.add_argument("--cv-splits", type=int, default=5)
     parser.add_argument("--random-state", type=int, default=42)
     parser.add_argument("--force-recompute-features", action="store_true")
+    parser.add_argument(
+        "--use-asr-nlp-features",
+        action="store_true",
+        help="Fuse in the ml/asr/ and ml/nlp/ caches (requires both to already exist).",
+    )
+    parser.add_argument("--model-version-tag", default="v1")
     args = parser.parse_args()
 
     summary = run_training(
@@ -225,6 +268,8 @@ def main() -> None:
         cv_splits=args.cv_splits,
         random_state=args.random_state,
         force_recompute_features=args.force_recompute_features,
+        use_asr_nlp_features=args.use_asr_nlp_features,
+        model_version_tag=args.model_version_tag,
     )
     print(json.dumps(summary, indent=2))
 
