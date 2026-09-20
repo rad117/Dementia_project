@@ -3,6 +3,7 @@ data/*
 !data/README.md
 models/*
 !models/README.md
+/ml.zip
 
 # Python
 __pycache__/
