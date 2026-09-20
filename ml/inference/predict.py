@@ -30,7 +30,11 @@ from ml.nlp.linguistic import LinguisticFeatureError, extract_linguistic_feature
 
 __all__ = ["AudioProcessingError", "predict"]
 
-REVIEW_THRESHOLD = 0.5  # placeholder -- no clinical basis yet, revisit once real eval exists
+DEFAULT_REVIEW_THRESHOLD = 0.5  # fallback only -- real models carry their own
+# review_threshold in metadata.json (Youden's index on the held-out test split,
+# see ml/training/train_baseline.py) -- a statistically principled cutoff, not
+# a clinically validated one. This constant only covers models trained before
+# that field existed.
 
 _cache: dict[str, tuple] = {}
 _cache_lock = Lock()
@@ -106,5 +110,5 @@ def predict(
         "speech_features": speech_features,
         "linguistic_features": linguistic_features,
         "model_version": metadata["model_version"],
-        "needs_clinician_review": risk_score >= REVIEW_THRESHOLD,
+        "needs_clinician_review": risk_score >= metadata.get("review_threshold", DEFAULT_REVIEW_THRESHOLD),
     }

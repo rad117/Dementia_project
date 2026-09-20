@@ -32,6 +32,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     roc_auc_score,
+    roc_curve,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -216,6 +217,17 @@ def run_training(
         results, key=lambda n: results[n]["metrics"]["cv_roc_auc_mean"] or float("-inf")
     )
 
+    # Youden's J (= sensitivity + specificity - 1) on the selected model's held-out
+    # test-split probabilities -- a statistically principled cutoff, not a clinically
+    # validated one. There's no separate validation split in this pipeline (see
+    # ml/preprocessing/split.py), so this reuses the same test split the reported
+    # metrics come from; revisit as more data accumulates or a real clinical
+    # evaluation becomes possible.
+    y_prob_selected = results[selected_name]["estimator"].predict_proba(X_test)[:, 1]
+    fpr, tpr, roc_thresholds = roc_curve(y_test, y_prob_selected)
+    youden_idx = int(np.argmax(tpr - fpr))
+    review_threshold = float(roc_thresholds[youden_idx])
+
     model_dir = Path(model_dir)
     model_dir.mkdir(parents=True, exist_ok=True)
     for name, r in results.items():
@@ -232,6 +244,8 @@ def run_training(
         "sklearn_version": sklearn.__version__,
         "n_train": len(train_df),
         "n_test": len(test_df),
+        "review_threshold": review_threshold,
+        "review_threshold_method": "youden_index_on_holdout_test_split",
     }
     (model_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
