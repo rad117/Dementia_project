@@ -16,6 +16,9 @@ _EXPECTED_KEYS = {
     "avg_logprob",
     "no_speech_prob",
     "duration_seconds",
+    "segments",
+    "detected_language",
+    "detected_language_probability",
 }
 
 
@@ -45,16 +48,29 @@ def _write_webm_opus_bytes(samples, sr):
     return buf.getvalue()
 
 
+class _FakeWord:
+    def __init__(self, word, start, end, probability=0.95):
+        self.word = word
+        self.start = start
+        self.end = end
+        self.probability = probability
+
+
 class _FakeSegment:
-    def __init__(self, text, avg_logprob=-0.2, no_speech_prob=0.05):
+    def __init__(self, text, avg_logprob=-0.2, no_speech_prob=0.05, start=0.0, end=1.0, words=None):
         self.text = text
         self.avg_logprob = avg_logprob
         self.no_speech_prob = no_speech_prob
+        self.start = start
+        self.end = end
+        self.words = words
 
 
 class _FakeInfo:
-    def __init__(self, duration):
+    def __init__(self, duration, language="en", language_probability=1.0):
         self.duration = duration
+        self.language = language
+        self.language_probability = language_probability
 
 
 class _FakeModel:
@@ -62,7 +78,7 @@ class _FakeModel:
         self._segments = segments if segments is not None else [_FakeSegment("hello world")]
         self._duration = duration
 
-    def transcribe(self, source, language=None):
+    def transcribe(self, source, language=None, word_timestamps=None):
         return iter(self._segments), _FakeInfo(self._duration)
 
 
@@ -134,6 +150,24 @@ def test_transcribe_handles_no_speech(monkeypatch):
     assert result["duration_seconds"] == pytest.approx(3.0)
 
 
+def test_transcribe_returns_word_level_timestamps(monkeypatch):
+    words = [_FakeWord("hello", 0.0, 0.4, 0.98), _FakeWord("world", 0.4, 0.9, 0.91)]
+    segment = _FakeSegment("hello world", start=0.0, end=0.9, words=words)
+    _use_fake_model(monkeypatch, _FakeModel([segment], duration=0.9))
+
+    result = transcribe(b"irrelevant, model is faked")
+
+    assert len(result["segments"]) == 1
+    seg = result["segments"][0]
+    assert seg["text"] == "hello world"
+    assert seg["start"] == pytest.approx(0.0)
+    assert seg["end"] == pytest.approx(0.9)
+    assert [w["word"] for w in seg["words"]] == ["hello", "world"]
+    assert seg["words"][1]["probability"] == pytest.approx(0.91)
+    assert result["detected_language"] == "en"
+    assert result["detected_language_probability"] == pytest.approx(1.0)
+
+
 def test_transcribe_raises_on_unsupported_type(monkeypatch):
     _use_fake_model(monkeypatch, _FakeModel())
     with pytest.raises(TranscriptionError):
@@ -142,7 +176,7 @@ def test_transcribe_raises_on_unsupported_type(monkeypatch):
 
 def test_transcribe_wraps_model_errors(monkeypatch):
     class _BrokenModel:
-        def transcribe(self, source, language=None):
+        def transcribe(self, source, language=None, word_timestamps=None):
             raise RuntimeError("decode failed")
 
     _use_fake_model(monkeypatch, _BrokenModel())
@@ -154,7 +188,7 @@ def test_transcribe_passes_language_through(monkeypatch):
     seen = {}
 
     class _RecordingModel:
-        def transcribe(self, source, language=None):
+        def transcribe(self, source, language=None, word_timestamps=None):
             seen["language"] = language
             return iter([_FakeSegment("ok")]), _FakeInfo(1.0)
 

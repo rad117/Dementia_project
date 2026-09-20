@@ -62,6 +62,11 @@ def test_list_patient_assessments_returns_only_complete_ones_newest_first():
         risk_score=0.2,
         speech_features={},
         linguistic_features={},
+        semantic_features={},
+        production_features={},
+        quality_signals={},
+        transcript=None,
+        raw_features={},
         model_version="stub-v0",
         needs_clinician_review=False,
     )
@@ -71,6 +76,11 @@ def test_list_patient_assessments_returns_only_complete_ones_newest_first():
         risk_score=0.6,
         speech_features={},
         linguistic_features={},
+        semantic_features={},
+        production_features={},
+        quality_signals={},
+        transcript=None,
+        raw_features={},
         model_version="stub-v0",
         needs_clinician_review=True,
     )

@@ -15,6 +15,11 @@ _EXPECTED_KEYS = {
     "risk_score",
     "speech_features",
     "linguistic_features",
+    "semantic_features",
+    "production_features",
+    "quality_signals",
+    "transcript",
+    "raw_features",
     "model_version",
     "needs_clinician_review",
 }
@@ -58,6 +63,10 @@ def test_predict_returns_expected_contract(tmp_path):
     assert isinstance(result["speech_features"], dict)
     assert "duration_seconds" in result["speech_features"]
     assert result["linguistic_features"] == {}
+    assert result["semantic_features"] == {}
+    assert result["production_features"] == {}
+    assert result["quality_signals"] == {}
+    assert result["transcript"] is None
     assert result["model_version"] == "test-dummy-v0"
     assert isinstance(result["needs_clinician_review"], bool)
 

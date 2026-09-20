@@ -14,6 +14,7 @@ from pathlib import Path
 import av
 import librosa
 import numpy as np
+import parselmouth
 import soundfile as sf
 
 _TARGET_SR = 16000
@@ -96,6 +97,8 @@ def extract_features(audio: str | Path | bytes, *, sample_rate: int | None = Non
     features.update(_pitch_features(y, sr))
     features.update(_energy_features(y))
     features.update(_mfcc_features(y, sr))
+    features.update(_voice_quality_features(y, sr))
+    features.update(_spectral_features(y, sr))
     return features
 
 
@@ -107,6 +110,8 @@ def _pause_features(y: np.ndarray, sr: int, duration_seconds: float) -> dict:
             "total_pause_duration_seconds": duration_seconds,
             "pause_ratio": 1.0,
             "voiced_rate_per_min": 0.0,
+            "longest_pause_seconds": 0.0,
+            "first_speech_onset_seconds": 0.0,
         }
     gaps = [
         (intervals[i + 1][0] - intervals[i][1]) / sr for i in range(len(intervals) - 1)
@@ -119,6 +124,8 @@ def _pause_features(y: np.ndarray, sr: int, duration_seconds: float) -> dict:
         "total_pause_duration_seconds": total_pause_duration_seconds,
         "pause_ratio": pause_ratio,
         "voiced_rate_per_min": voiced_rate_per_min,
+        "longest_pause_seconds": float(max(gaps)) if gaps else 0.0,
+        "first_speech_onset_seconds": float(intervals[0][0] / sr),
     }
 
 
@@ -126,14 +133,30 @@ def _pitch_features(y: np.ndarray, sr: int) -> dict:
     f0, voiced_flag, _voiced_prob = librosa.pyin(
         y, fmin=_PITCH_FMIN_HZ, fmax=_PITCH_FMAX_HZ, sr=sr
     )
-    voiced_f0 = f0[voiced_flag.astype(bool)] if voiced_flag is not None else f0
+    voiced_mask = voiced_flag.astype(bool) if voiced_flag is not None else np.zeros_like(f0, dtype=bool)
+    voice_breaks_count = _count_voice_breaks(voiced_mask)
+    voiced_f0 = f0[voiced_mask]
     voiced_f0 = voiced_f0[~np.isnan(voiced_f0)]
     if voiced_f0.size == 0:
-        return {"pitch_mean_hz": 0.0, "pitch_std_hz": 0.0}
+        return {"pitch_mean_hz": 0.0, "pitch_std_hz": 0.0, "voice_breaks_count": voice_breaks_count}
     return {
         "pitch_mean_hz": float(np.mean(voiced_f0)),
         "pitch_std_hz": float(np.std(voiced_f0)),
+        "voice_breaks_count": voice_breaks_count,
     }
+
+
+def _count_voice_breaks(voiced_mask: np.ndarray) -> float:
+    """Counts interior voiced->unvoiced transitions after speech has
+    started, as a proxy for perceptible voice breaks -- excludes the
+    single leading unvoiced->voiced transition into the first utterance,
+    which isn't a "break" in ongoing phonation."""
+    if voiced_mask.size == 0 or not voiced_mask.any():
+        return 0.0
+    first_voiced = int(np.argmax(voiced_mask))
+    interior = voiced_mask[first_voiced:]
+    transitions = np.diff(interior.astype(int))
+    return float(np.sum(transitions == -1))
 
 
 def _energy_features(y: np.ndarray) -> dict:
@@ -151,3 +174,45 @@ def _mfcc_features(y: np.ndarray, sr: int) -> dict:
         features[f"mfcc_{i + 1}_mean"] = float(np.mean(mfcc[i]))
         features[f"mfcc_{i + 1}_std"] = float(np.std(mfcc[i]))
     return features
+
+
+def _voice_quality_features(y: np.ndarray, sr: int) -> dict:
+    """Jitter/shimmer/HNR via Praat's validated algorithms (no equivalent
+    in librosa -- hand-rolling perturbation-quotient math from a raw pitch
+    contour is error-prone next to Praat's decades-mature implementation).
+    Falls back to zeros if the signal has too little voiced content for
+    Praat to build a point process (e.g. near-silent or very short clips)
+    rather than raising -- these are supplementary fields, not required
+    for the trained model's feature vector."""
+    try:
+        sound = parselmouth.Sound(y.astype("float64"), sampling_frequency=sr)
+        point_process = parselmouth.praat.call(
+            sound, "To PointProcess (periodic, cc)", _PITCH_FMIN_HZ, _PITCH_FMAX_HZ
+        )
+        jitter_local = parselmouth.praat.call(
+            point_process, "Get jitter (local)", 0, 0, 0.0001, 0.02, 1.3
+        )
+        shimmer_local = parselmouth.praat.call(
+            [sound, point_process],
+            "Get shimmer (local)",
+            0, 0, 0.0001, 0.02, 1.3, 1.6,
+        )
+        harmonicity = sound.to_harmonicity_cc(minimum_pitch=_PITCH_FMIN_HZ)
+        hnr_db = parselmouth.praat.call(harmonicity, "Get mean", 0, 0)
+    except Exception:
+        return {"jitter_percent": 0.0, "shimmer_percent": 0.0, "hnr_db": 0.0}
+
+    def _clean(value):
+        value = float(value)
+        return value if np.isfinite(value) else 0.0
+
+    return {
+        "jitter_percent": _clean(jitter_local) * 100,
+        "shimmer_percent": _clean(shimmer_local) * 100,
+        "hnr_db": _clean(hnr_db),
+    }
+
+
+def _spectral_features(y: np.ndarray, sr: int) -> dict:
+    centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    return {"spectral_centroid_hz_mean": float(np.mean(centroid))}

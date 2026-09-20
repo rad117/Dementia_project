@@ -38,11 +38,28 @@ def _get_model(model_size: str) -> WhisperModel:
         return _model_cache[model_size]
 
 
+def _serialize_words(segment) -> list[dict]:
+    words = getattr(segment, "words", None) or []
+    return [
+        {
+            "word": w.word.strip(),
+            "start": float(w.start),
+            "end": float(w.end),
+            "probability": float(w.probability),
+        }
+        for w in words
+    ]
+
+
 def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: str = "small.en") -> dict:
     """Transcribes audio and returns a flat dict of ASR-layer fields.
 
     Returns {"transcript_text", "word_count", "avg_logprob",
-    "no_speech_prob", "duration_seconds"}. Raises TranscriptionError on
+    "no_speech_prob", "duration_seconds", "segments", "detected_language",
+    "detected_language_probability"}. "segments" carries per-word
+    timestamps/confidence (word_timestamps=True) -- consumed by the
+    NLP/disfluency and pronunciation-proxy layers, not by the acoustic
+    model's own feature vector. Raises TranscriptionError on
     unreadable/corrupt audio or an unsupported input type.
     """
     if isinstance(audio, (str, Path)):
@@ -54,10 +71,13 @@ def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: s
 
     try:
         model = _get_model(model_size)
-        segments, info = model.transcribe(source, language=language)
+        segments, info = model.transcribe(source, language=language, word_timestamps=True)
         segments = list(segments)
     except Exception as exc:
         raise TranscriptionError(f"Could not transcribe audio: {exc}") from exc
+
+    detected_language = getattr(info, "language", language) if info is not None else language
+    detected_language_probability = float(getattr(info, "language_probability", 1.0)) if info is not None else 1.0
 
     if not segments:
         return {
@@ -66,11 +86,14 @@ def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: s
             "avg_logprob": 0.0,
             "no_speech_prob": 1.0,
             "duration_seconds": float(info.duration) if info is not None else 0.0,
+            "segments": [],
+            "detected_language": detected_language,
+            "detected_language_probability": detected_language_probability,
         }
 
     transcript_text = " ".join(segment.text.strip() for segment in segments).strip()
     avg_logprob = sum(segment.avg_logprob for segment in segments) / len(segments)
-    no_speech_prob = sum(segment.no_speech_prob for segment in segments) / len(segments)
+    no_speech_prob = sum(getattr(segment, "no_speech_prob", 0.0) for segment in segments) / len(segments)
 
     return {
         "transcript_text": transcript_text,
@@ -78,4 +101,16 @@ def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: s
         "avg_logprob": float(avg_logprob),
         "no_speech_prob": float(no_speech_prob),
         "duration_seconds": float(info.duration),
+        "segments": [
+            {
+                "text": segment.text.strip(),
+                "start": float(segment.start),
+                "end": float(segment.end),
+                "avg_logprob": float(segment.avg_logprob),
+                "words": _serialize_words(segment),
+            }
+            for segment in segments
+        ],
+        "detected_language": detected_language,
+        "detected_language_probability": detected_language_probability,
     }

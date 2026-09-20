@@ -13,12 +13,19 @@ _EXPECTED_KEYS = {
     "total_pause_duration_seconds",
     "pause_ratio",
     "voiced_rate_per_min",
+    "longest_pause_seconds",
+    "first_speech_onset_seconds",
     "pitch_mean_hz",
     "pitch_std_hz",
+    "voice_breaks_count",
     "energy_rms_mean",
     "energy_rms_std",
     *(f"mfcc_{i}_mean" for i in range(1, 14)),
     *(f"mfcc_{i}_std" for i in range(1, 14)),
+    "jitter_percent",
+    "shimmer_percent",
+    "hnr_db",
+    "spectral_centroid_hz_mean",
 }
 
 
@@ -82,6 +89,22 @@ def test_extract_features_from_webm_opus_bytes():
     assert set(features.keys()) == _EXPECTED_KEYS
     assert features["duration_seconds"] == pytest.approx(1.0, abs=0.1)
     assert all(np.isfinite(v) for v in features.values())
+
+
+def test_voice_quality_features_are_plausible_for_clean_tone(tmp_path):
+    # A clean sine tone should read as near-perfect voice quality: very low
+    # jitter/shimmer, high HNR, no voice breaks -- a sanity check on the
+    # parselmouth wiring rather than an assertion on exact values.
+    samples, sr = _sine_wave(seconds=2.0, freq=150.0)
+    wav_path = tmp_path / "tone.wav"
+    sf.write(str(wav_path), samples, sr)
+
+    features = extract_features(wav_path)
+
+    assert features["jitter_percent"] < 1.0
+    assert features["shimmer_percent"] < 1.0
+    assert features["hnr_db"] > 20.0
+    assert features["voice_breaks_count"] == 0.0
 
 
 def test_extract_features_raises_on_corrupt_bytes():

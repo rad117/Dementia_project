@@ -1,4 +1,3 @@
-import json
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -8,8 +7,9 @@ from backend.schemas.assessment import (
     AssessmentAudioResponse,
     AssessmentCreate,
     AssessmentCreateResponse,
-    AssessmentResult,
 )
+from backend.schemas.results import AssessmentInfo, AssessmentResultsV2
+from backend.services.results_mapper import build_assessment_info, build_results, find_previous_assessment_row
 from ml.inference.predict import AudioProcessingError, predict
 
 router = APIRouter()
@@ -45,20 +45,21 @@ async def upload_assessment_audio(
     return AssessmentAudioResponse(id=assessment_id, status="complete")
 
 
-@router.get("/assessments/{assessment_id}/results", response_model=AssessmentResult)
-def get_assessment_results(assessment_id: str) -> AssessmentResult:
+@router.get("/assessments/{assessment_id}", response_model=AssessmentInfo)
+def get_assessment(assessment_id: str) -> AssessmentInfo:
+    row = db.get_assessment_row(assessment_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return AssessmentInfo(**build_assessment_info(row))
+
+
+@router.get("/assessments/{assessment_id}/results", response_model=AssessmentResultsV2)
+def get_assessment_results(assessment_id: str) -> AssessmentResultsV2:
     row = db.get_assessment_row(assessment_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
     if row["status"] != "complete":
         raise HTTPException(status_code=409, detail="Assessment not yet processed")
 
-    return AssessmentResult(
-        assessment_id=row["id"],
-        language=row["language"],
-        risk_score=row["risk_score"],
-        speech_features=json.loads(row["speech_features"]),
-        linguistic_features=json.loads(row["linguistic_features"]),
-        model_version=row["model_version"],
-        needs_clinician_review=bool(row["needs_clinician_review"]),
-    )
+    previous_row = find_previous_assessment_row(row["patient_id"], assessment_id)
+    return AssessmentResultsV2(**build_results(row, previous_row))

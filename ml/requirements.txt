@@ -6,3 +6,5 @@ soundfile>=0.14
 joblib>=1.6
 av>=18.1
 faster-whisper>=1.0
+praat-parselmouth>=0.4
+shap>=0.52
