@@ -35,7 +35,9 @@ export default function ClinicalSidebar({ open, onClose }) {
       {open && <button className={styles.scrim} aria-label="Close navigation" onClick={onClose} />}
       <aside className={`${styles.sidebar} ${open ? styles.open : ""}`} aria-label="Clinical navigation">
         <div className={styles.header}>
-          <span className={styles.brand}>CognitiveAssist</span>
+          <span className={styles.brand}>
+            Memora <span className={styles.subBrand}>Clinical</span>
+          </span>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close navigation">
             <X size={18} />
           </button>

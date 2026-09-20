@@ -17,7 +17,6 @@ export default function MemoryMatch({ onFinish }) {
   const [deck] = useState(shuffledDeck);
   const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
-  const [moves, setMoves] = useState(0);
 
   const isComplete = matched.length === deck.length;
 
@@ -26,7 +25,6 @@ export default function MemoryMatch({ onFinish }) {
     const next = [...flipped, index];
     setFlipped(next);
     if (next.length === 2) {
-      setMoves((m) => m + 1);
       const [a, b] = next;
       if (deck[a].key === deck[b].key) {
         setTimeout(() => {
@@ -44,9 +42,11 @@ export default function MemoryMatch({ onFinish }) {
   if (isComplete) {
     return (
       <div className={styles.resultCard}>
-        <p style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Nice work!</p>
-        <p style={{ color: "var(--muted)", marginBottom: 20 }}>You completed this in {moves} moves. This reflects activity performance, not a clinical result.</p>
-        <Button variant="accent" onClick={onFinish}>Back to activities</Button>
+        <p style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: "var(--ink)" }}>All pairs matched</p>
+        <p style={{ color: "var(--slate)", marginBottom: 20, fontSize: 16 }}>
+          You've completed this exercise. This relaxed activity is for engagement and is not a clinical assessment.
+        </p>
+        <Button variant="accent" size="lg" onClick={onFinish}>Back to activities</Button>
       </div>
     );
   }

@@ -1,4 +1,3 @@
-import clinicalStyles from "../../components/clinical/clinical.module.css";
 import FeatureSection from "../../components/clinical/FeatureSection.jsx";
 
 export default function ClinicalModelInfo() {

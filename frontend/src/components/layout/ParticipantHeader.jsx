@@ -17,8 +17,8 @@ export default function ParticipantHeader({ onBack, showHelp = true }) {
           <span />
         )}
       </div>
-      <Link to="/patient" className={styles.logo}>
-        CognitiveAssist
+      <Link to="/patient" className={styles.logo} aria-label="Memora Home">
+        Memora
       </Link>
       <div className={styles.side} style={{ justifyContent: "flex-end" }}>
         {showHelp && (

@@ -16,13 +16,16 @@ textarea:focus-visible,
   box-shadow: var(--focus-ring);
 }
 
-/* Minimum touch target size for interactive controls. */
+/* Minimum 48px touch target size for accessible interactive controls. */
 button,
 a.button,
 input[type="checkbox"],
 input[type="radio"],
+input[type="text"],
+input[type="password"],
+input[type="email"],
 select {
-  min-height: 44px;
+  min-height: 48px;
 }
 
 .skip-link {
