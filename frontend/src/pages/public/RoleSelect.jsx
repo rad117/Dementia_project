@@ -1,23 +1,4 @@
 import { Link } from "react-router-dom";
-import { User, Stethoscope } from "lucide-react";
+import { UserRound, Stethoscope, ArrowRight } from "lucide-react";
 import styles from "./RoleSelect.module.css";
-
-export default function RoleSelect() {
-  return (
-    <div className={styles.wrap}>
-      <h1 className={styles.heading}>How will you use CognitiveAssist?</h1>
-      <div className={styles.grid}>
-        <Link to="/login/patient" className={styles.card}>
-          <User size={28} strokeWidth={1.6} className={styles.icon} aria-hidden="true" />
-          <h2 className={styles.cardTitle}>Participant</h2>
-          <p className={styles.cardDescription}>Complete an assessment or activity.</p>
-        </Link>
-        <Link to="/login/clinical" className={styles.card}>
-          <Stethoscope size={28} strokeWidth={1.6} className={styles.icon} aria-hidden="true" />
-          <h2 className={styles.cardTitle}>Clinical Professional</h2>
-          <p className={styles.cardDescription}>Review assessments, speech analysis and longitudinal change.</p>
-        </Link>
-      </div>
-    </div>
-  );
-}
+export default function RoleSelect(){return <div className={styles.wrap}><p className={styles.eyebrow}>Memora</p><h1 className={styles.heading}>Choose how you will use Memora</h1><p className={styles.lead}>Select the option that matches your role.</p><div className={styles.grid}><Link to="/login/patient" className={styles.card}><div className={styles.icon}><UserRound size={24}/></div><div><h2>Participant</h2><p>Complete an assessment.</p></div><ArrowRight size={19}/></Link><Link to="/login/clinical" className={styles.card}><div className={styles.icon}><Stethoscope size={24}/></div><div><h2>Clinical professional</h2><p>Review patients and assessments.</p></div><ArrowRight size={19}/></Link></div></div>}

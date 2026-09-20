@@ -1,67 +1,41 @@
 :root {
-  /* Neutrals */
-  --ink: #111318;
-  --graphite: #1b1e24;
-  --slate: #30343b;
-  --paper: #f6f5f1;
-  --white: #ffffff;
-  --line: #d9d9d4;
-  --line-strong: #b9b9b2;
-  --muted: #686b72;
-
-  /* Primary accent */
-  --cobalt: #3157d5;
-  --cobalt-deep: #2443a8;
-  --cobalt-soft: #e9edff;
-
-  /* Semantic accents — used sparingly, always paired with icon/text */
-  --amber: #d99a21;
-  --amber-soft: #fbf1de;
-  --red: #c94b4b;
-  --red-soft: #fbeaea;
-  --green: #3d8b67;
-  --green-soft: #e8f3ee;
-  --violet: #7159b8;
-  --violet-soft: #efebf9;
-
-  /* Radii */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  /* Shadows — used sparingly */
-  --shadow-subtle: 0 1px 2px rgba(17, 19, 24, 0.06);
-  --shadow-medium: 0 2px 8px rgba(17, 19, 24, 0.08);
-
-  /* Typography */
-  --font-ui: "Manrope", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-technical: "IBM Plex Sans", "Manrope", sans-serif;
-
-  /* Spacing scale */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-  --space-9: 96px;
-
-  /* Layout */
-  --clinical-sidebar-width: 240px;
-  --content-max-width: 1360px;
-  --focus-ring: 0 0 0 3px rgba(49, 87, 213, 0.45);
-
-  /* Motion */
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --duration-fast: 120ms;
+  --ink: #17181b;
+  --graphite: #25272b;
+  --slate: #3f434a;
+  --paper: #f7f6f2;
+  --white: #fff;
+  --line: #deded8;
+  --line-strong: #b8b9b4;
+  --muted: #70736f;
+  --cobalt: #2f55c8;
+  --cobalt-deep: #23439f;
+  --cobalt-soft: #eef2ff;
+  --green: #3f7e61;
+  --green-soft: #edf5f0;
+  --amber: #9a6a16;
+  --amber-soft: #fbf4e5;
+  --red: #b64141;
+  --red-soft: #fbefef;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-subtle: 0 1px 2px rgba(23,24,27,.05);
+  --shadow-medium: 0 8px 30px rgba(23,24,27,.07);
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-technical: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px; --space-9: 96px;
+  --touch-target-min: 48px;
+  --touch-target-lg: 56px;
+  --touch-target-xl: 64px;
+  --font-size-participant-body: 19px;
+  --font-size-instruction: 26px;
+  --font-size-instruction-lg: 32px;
+  --clinical-sidebar-width: 248px;
+  --content-max-width: 1280px;
+  --focus-ring: 0 0 0 4px rgba(47,85,200,.22);
+  --ease-standard: cubic-bezier(.2,0,0,1);
+  --duration-fast: 140ms;
   --duration-medium: 220ms;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --duration-fast: 0ms;
-    --duration-medium: 0ms;
-  }
-}
+@media (prefers-reduced-motion: reduce) { :root { --duration-fast: 0ms; --duration-medium: 0ms; } }

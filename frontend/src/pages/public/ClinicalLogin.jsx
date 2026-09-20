@@ -75,8 +75,22 @@ export default function ClinicalLogin() {
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-      <p className={styles.hint} style={{ marginTop: "var(--space-5)", textAlign: "center" }}>
-        Demo mode — any email and password will sign you in.
+      <div className={styles.demoSection} style={{ marginTop: "var(--space-4)" }}>
+        <p className={styles.demoLabel}>Demo quick access:</p>
+        <button
+          type="button"
+          className={styles.chip}
+          style={{ width: "100%", textAlign: "center" }}
+          onClick={() => {
+            setEmail("dr.sharma@memora.org");
+            setPassword("demo1234");
+          }}
+        >
+          Fill Demo Clinician (Dr. Sharma)
+        </button>
+      </div>
+      <p className={styles.hint} style={{ marginTop: "var(--space-4)", textAlign: "center" }}>
+        Demo mode — any credentials will grant access.
       </p>
     </div>
   );

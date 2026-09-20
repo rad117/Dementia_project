@@ -6,20 +6,19 @@ export default function Footer() {
     <footer className={styles.footer}>
       <div className={`container ${styles.inner}`}>
         <div className={styles.brandCol}>
-          <p className={styles.logo}>CognitiveAssist</p>
-          <p className={styles.tagline}>Multilingual cognitive screening and longitudinal speech analysis.</p>
+          <p className={styles.logo}>Memora</p>
+          <p className={styles.tagline}>Understanding memory through speech.</p>
         </div>
         <nav className={styles.links} aria-label="Footer">
-          <a href="#how-it-works">Product</a>
-          <a href="#multilingual">Approach</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#assessment-approach">Assessment</a>
+          <a href="#clinical-review">Clinical review</a>
           <a href="#privacy">Privacy</a>
-          <a href="#accessibility-note">Accessibility</a>
-          <a href="mailto:hello@cognitiveassist.example">Contact</a>
-          <Link to="/role">Login</Link>
+          <Link to="/role">Sign in</Link>
         </nav>
       </div>
       <div className={`container ${styles.bottom}`}>
-        <span>© 2026 CognitiveAssist. Demo product — not a certified medical device.</span>
+        <span>© 2026 Memora. Cognitive screening & clinical review support platform — not a standalone diagnostic device.</span>
       </div>
     </footer>
   );

@@ -4,7 +4,7 @@ import styles from "./ExportPanel.module.css";
 
 export default function ExportPanel() {
   return (
-    <div className={styles.row}>
+    <div className={`${styles.row} no-print`}>
       <Button variant="secondary" onClick={() => window.print()}>
         <Printer size={16} aria-hidden="true" /> Print
       </Button>
