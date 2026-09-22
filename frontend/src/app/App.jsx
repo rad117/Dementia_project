@@ -1,4 +1,5 @@
 import { BrowserRouter } from "react-router-dom";
+import "./gsapSetup.js";
 import { ThemeProvider } from "./ThemeContext.jsx";
 import { SessionProvider } from "./SessionContext.jsx";
 import { AssessmentProvider } from "./AssessmentContext.jsx";

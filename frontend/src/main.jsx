@@ -4,7 +4,10 @@ import "@fontsource-variable/inter";
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/geist-sans/600.css";
+import "@fontsource/geist-sans/700.css";
 import "./styles/globals.css";
+import "./styles/tailwind.css";
 import App from "./app/App.jsx";
 
 createRoot(document.getElementById("root")).render(
