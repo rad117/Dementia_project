@@ -77,6 +77,37 @@ def list_assessments_by_patient(patient_id: str, db_path: Path | None = None) ->
         return [dict(row) for row in rows]
 
 
+def list_all_assessments(
+    status: str | None = "complete",
+    needs_review: bool | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    db_path: Path | None = None,
+) -> list[dict]:
+    """Lists assessments across all patients, most recent first.
+
+    Defaults to status='complete' -- mirrors list_assessments_by_patient's
+    convention and avoids returning pending_recording rows whose
+    quality/screening fields are None (which downstream response building
+    requires to be populated).
+    """
+    query = "SELECT * FROM assessments WHERE 1=1"
+    params: list = []
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    if needs_review is not None:
+        query += " AND needs_clinician_review = ?"
+        params.append(int(needs_review))
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    with sqlite3.connect(db_path or DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, params).fetchall()
+        return [dict(row) for row in rows]
+
+
 def save_result_row(
     assessment_id: str,
     *,

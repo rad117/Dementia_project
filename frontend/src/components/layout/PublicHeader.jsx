@@ -1,8 +1,13 @@
 import { Link } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
 import Button from "../common/Button.jsx";
+import IconButton from "../common/IconButton.jsx";
+import { useTheme } from "../../app/ThemeContext.jsx";
 import styles from "./PublicHeader.module.css";
 
 export default function PublicHeader() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <header className={styles.header}>
       <div className={`${styles.inner} container`}>
@@ -16,6 +21,12 @@ export default function PublicHeader() {
           <a href="#privacy">Privacy</a>
         </nav>
         <div className={styles.actions}>
+          <IconButton
+            icon={theme === "dark" ? Sun : Moon}
+            label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            variant="outline"
+            onClick={toggleTheme}
+          />
           <Button as={Link} to="/role" variant="secondary" size="sm">
             Sign In
           </Button>

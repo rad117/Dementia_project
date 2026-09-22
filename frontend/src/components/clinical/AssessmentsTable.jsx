@@ -6,7 +6,7 @@ export default function AssessmentsTable({ rows }) {
   const navigate = useNavigate();
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} fade-in-up`}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -32,10 +32,10 @@ export default function AssessmentsTable({ rows }) {
               }}
             >
               <td className={styles.patientCell}>{row.patientName}</td>
-              <td>{row.assessment.date}</td>
+              <td className={styles.numCell}>{row.assessment.date}</td>
               <td>{row.assessment.language}</td>
               <td>{row.assessment.task.name}</td>
-              <td>{row.assessment.quality.durationSeconds}s</td>
+              <td className={styles.numCell}>{row.assessment.quality.durationSeconds}s</td>
               <td style={{ textTransform: "capitalize" }}>{row.assessment.quality.audioQuality}</td>
               <td>
                 <Status tone={row.assessment.screening.needsClinicianReview ? "attention" : "positive"}>

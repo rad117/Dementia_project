@@ -1,1 +1,1 @@
-.shell{min-height:100vh;display:flex;flex-direction:column;background:#f7f6f2}.content{flex:1;display:flex;justify-content:center;padding:48px 20px 72px}.inner{width:100%;max-width:720px}@media(max-width:640px){.content{padding:32px 16px 48px}}
+.shell{min-height:100vh;display:flex;flex-direction:column;background:var(--paper)}.content{flex:1;display:flex;justify-content:center;padding:48px 20px 72px}.inner{width:100%;max-width:720px}@media(max-width:640px){.content{padding:32px 16px 48px}}

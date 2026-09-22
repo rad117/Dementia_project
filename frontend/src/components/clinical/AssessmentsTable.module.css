@@ -28,6 +28,7 @@
 
 .row {
   cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
 }
 
 .row:hover {
@@ -50,4 +51,8 @@
 .openCell {
   color: var(--cobalt-deep);
   font-weight: 600;
+}
+
+.numCell {
+  font-variant-numeric: tabular-nums;
 }

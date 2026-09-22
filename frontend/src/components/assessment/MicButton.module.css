@@ -27,7 +27,7 @@
 }
 
 .recording:hover:not(:disabled) {
-  background: #a83c3c;
+  filter: brightness(0.88);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -37,6 +37,6 @@
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 75, 75, 0.35); }
-  50% { box-shadow: 0 0 0 14px rgba(201, 75, 75, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--red-rgb), 0.35); }
+  50% { box-shadow: 0 0 0 14px rgba(var(--red-rgb), 0); }
 }

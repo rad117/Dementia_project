@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
 from backend import db
 from backend.schemas.assessment import (
@@ -18,6 +18,16 @@ router = APIRouter()
 @router.get("/health")
 def health() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/assessments", response_model=list[AssessmentInfo])
+def list_assessments(
+    needs_review: bool | None = Query(None, alias="needsReview"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> list[AssessmentInfo]:
+    rows = db.list_all_assessments(needs_review=needs_review, limit=limit, offset=offset)
+    return [AssessmentInfo(**build_assessment_info(row)) for row in rows]
 
 
 @router.post("/assessments", response_model=AssessmentCreateResponse, status_code=201)

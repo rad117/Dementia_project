@@ -10,6 +10,18 @@
   transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 
+/* State-change feedback: since the icon prop can swap to a different lucide
+   component (e.g. the theme toggle's Sun/Moon), React mounts a new <svg>
+   element -- this animates that mount instead of an abrupt snap. */
+.iconButton svg {
+  animation: icon-in 180ms var(--ease-standard);
+}
+
+@keyframes icon-in {
+  from { opacity: 0; transform: scale(0.7) rotate(-15deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
 .md {
   width: 44px;
   height: 44px;

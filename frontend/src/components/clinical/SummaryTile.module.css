@@ -3,6 +3,12 @@
   border-radius: var(--radius-md);
   padding: var(--space-5);
   background: var(--white);
+  animation: tile-in var(--duration-medium) var(--ease-standard) backwards;
+}
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .icon {
@@ -15,6 +21,7 @@
   font-weight: 700;
   line-height: 1.1;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .label {
