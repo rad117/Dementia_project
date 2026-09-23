@@ -1,8 +1,6 @@
 # Private/sensitive dataset — never commit raw data, only the README
 data/*
 !data/README.md
-models/*
-!models/README.md
 /ml.zip
 
 # Python

@@ -1,0 +1,30 @@
+{
+  "n_instructor_removed": 23,
+  "n_unedited": 62,
+  "features": {
+    "pause_count": {
+      "mean_instructor_removed": 52.26086956521739,
+      "mean_unedited": 51.75806451612903,
+      "mannwhitney_u": 638.5,
+      "p_value": 0.46406360604279695
+    },
+    "total_pause_duration_seconds": {
+      "mean_instructor_removed": 43.41704347826085,
+      "mean_unedited": 42.943999999999996,
+      "mannwhitney_u": 686.5,
+      "p_value": 0.7970307199716856
+    },
+    "pause_ratio": {
+      "mean_instructor_removed": 0.499861256482441,
+      "mean_unedited": 0.5349561440590456,
+      "mannwhitney_u": 655.0,
+      "p_value": 0.5695008601072467
+    },
+    "voiced_rate_per_min": {
+      "mean_instructor_removed": 37.95542590704495,
+      "mean_unedited": 41.930526106066765,
+      "mannwhitney_u": 617.0,
+      "p_value": 0.3448219537273304
+    }
+  }
+}
