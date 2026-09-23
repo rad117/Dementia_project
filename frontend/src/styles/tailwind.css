@@ -6,6 +6,14 @@
 @import "tailwindcss/theme.css";
 @import "tailwindcss/utilities.css";
 
+/* The app's theme toggle sets data-theme="dark" on <html> (see
+   ThemeContext.jsx), not Tailwind's default media-query or .dark class
+   convention -- wire dark: up to match it. Most colors don't need this
+   at all since they're already CSS-variable-driven and flip automatically
+   (bg-paper, text-ink, etc.); reserve dark: for one-off adjustments that
+   aren't representable as a token swap (e.g. an inset highlight shadow). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
   --color-ink: var(--ink);
   --color-graphite: var(--graphite);
