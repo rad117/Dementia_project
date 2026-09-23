@@ -36,10 +36,41 @@ CREATE TABLE IF NOT EXISTS assessments (
 );
 """
 
+# Columns added after the table's initial creation -- kept in sync with
+# _SCHEMA above by _sync_columns(). Only nullable/no-default columns belong
+# here (SQLite's ALTER TABLE ADD COLUMN can't add a NOT NULL column without
+# a default against a table that already has rows).
+_ASSESSMENT_COLUMNS = {
+    "risk_score": "REAL",
+    "speech_features": "TEXT",
+    "linguistic_features": "TEXT",
+    "semantic_features": "TEXT",
+    "production_features": "TEXT",
+    "quality_signals": "TEXT",
+    "transcript": "TEXT",
+    "raw_features": "TEXT",
+    "model_version": "TEXT",
+    "needs_clinician_review": "INTEGER",
+    "completed_at": "TEXT",
+}
+
 
 def init_db(db_path: Path | None = None) -> None:
     with sqlite3.connect(db_path or DB_PATH) as conn:
         conn.execute(_SCHEMA)
+        _sync_columns(conn)
+
+
+def _sync_columns(conn: sqlite3.Connection) -> None:
+    """CREATE TABLE IF NOT EXISTS is a no-op against a table that already
+    exists on an older schema -- an existing assessments.db predating a
+    column addition (e.g. semantic_features/production_features/etc.) would
+    otherwise silently keep the old schema forever and fail at write time.
+    Adds any column present in _SCHEMA but missing from the live table."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(assessments)")}
+    for name, coltype in _ASSESSMENT_COLUMNS.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE assessments ADD COLUMN {name} {coltype}")
 
 
 def create_assessment_row(

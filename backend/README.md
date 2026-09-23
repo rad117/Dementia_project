@@ -22,6 +22,12 @@ From the repo root:
 python -m venv .venv
 .venv\Scripts\activate   # Windows
 pip install -r backend/requirements-dev.txt
+
+# Confirms .venv is actually active and the ML stack resolved -- a plain
+# `python`/`uvicorn` invocation without activating .venv first will import
+# the system interpreter instead and fail with ModuleNotFoundError at
+# request time (on the first /assessments/{id}/audio call) instead of here.
+python -c "import faster_whisper, librosa, parselmouth, shap"
 ```
 
 ## Run
