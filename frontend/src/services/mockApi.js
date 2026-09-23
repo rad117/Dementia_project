@@ -210,12 +210,26 @@ export async function verifyParticipantCode(code) {
 }
 
 // Placeholder clinical login — accepts any non-empty credentials in demo mode.
+export async function verifyParticipantAssisted(patientId) {
+  await delay(DELAY_MS.short);
+  const patient = getPatientById(patientId);
+  if (!patient) {
+    throw new ApiError("Patient not found.", "PATIENT_NOT_FOUND");
+  }
+  return { patientId: patient.id, name: patient.name };
+}
+
 export async function loginClinicalUser({ email, password }) {
   await delay(DELAY_MS.short);
   if (!email || !password) {
     throw new ApiError("Enter your email and password to continue.", "INVALID_CREDENTIALS");
   }
   return { name: email.split("@")[0].replace(/[._]/g, " "), role: "Clinical Professional" };
+}
+
+export async function logout() {
+  await delay(DELAY_MS.short);
+  return null;
 }
 
 export const mockApi = {
@@ -228,7 +242,9 @@ export const mockApi = {
   getAssessmentResults,
   getAllAssessments,
   verifyParticipantCode,
+  verifyParticipantAssisted,
   loginClinicalUser,
+  logout,
 };
 
 export { ApiError };

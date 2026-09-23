@@ -3,21 +3,10 @@ import io
 import pytest
 from fastapi.testclient import TestClient
 
-import backend.db as db_module
 import backend.routes.assessments as assessments_module
 from backend.main import app
 
 client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def _isolated_db(tmp_path, monkeypatch):
-    # Route handlers call db.* without an explicit db_path, so they always
-    # hit the module-level default -- point that at a throwaway file per
-    # test instead of the real dev DB.
-    test_db_path = tmp_path / "test_assessments.db"
-    monkeypatch.setattr(db_module, "DB_PATH", test_db_path)
-    db_module.init_db(test_db_path)
 
 
 def _fake_predict_result(*, risk_score=0.37, needs_review=False, word_count=5, concepts_identified=6.0):
@@ -108,22 +97,24 @@ def _stub_predict(monkeypatch):
     monkeypatch.setattr(assessments_module, "predict", lambda *a, **kw: _fake_predict_result())
 
 
-def _create_assessment(patient_id="patient-1"):
+def _create_assessment(headers, patient_id="CA-1001"):
     return client.post(
         "/assessments",
         json={"patientId": patient_id, "language": "en", "taskId": "cookie-theft"},
+        headers=headers,
     )
 
 
-def _upload_audio(assessment_id):
+def _upload_audio(assessment_id, headers):
     return client.post(
         f"/assessments/{assessment_id}/audio",
         files={"audio": ("recording.webm", io.BytesIO(b"fake-audio-bytes"), "audio/webm")},
+        headers=headers,
     )
 
 
-def test_create_assessment_returns_id_and_pending_status():
-    response = _create_assessment()
+def test_create_assessment_returns_id_and_pending_status(participant_headers):
+    response = _create_assessment(participant_headers)
 
     assert response.status_code == 201
     body = response.json()
@@ -131,35 +122,48 @@ def test_create_assessment_returns_id_and_pending_status():
     assert body["status"] == "pending_recording"
 
 
-def test_get_assessment_returns_pending_before_audio_uploaded():
-    assessment_id = _create_assessment().json()["id"]
+def test_create_assessment_requires_auth():
+    response = _create_assessment(headers=None)
 
-    response = client.get(f"/assessments/{assessment_id}")
+    assert response.status_code == 401
+
+
+def test_create_assessment_403_for_a_different_patient(participant_headers):
+    response = _create_assessment(participant_headers, patient_id="CA-1002")
+
+    assert response.status_code == 403
+
+
+def test_get_assessment_returns_pending_before_audio_uploaded(participant_headers):
+    assessment_id = _create_assessment(participant_headers).json()["id"]
+
+    response = client.get(f"/assessments/{assessment_id}", headers=participant_headers)
 
     assert response.status_code == 200
     body = response.json()
     assert body["id"] == assessment_id
-    assert body["patientId"] == "patient-1"
+    assert body["patientId"] == "CA-1001"
     assert body["status"] == "pending_recording"
     assert body["task"] == {"id": "cookie-theft", "name": "Picture Description"}
     assert body["quality"] is None
     assert body["screening"] is None
 
 
-def test_get_assessment_for_unknown_id_returns_404():
-    response = client.get("/assessments/does-not-exist")
+def test_get_assessment_for_unknown_id_returns_404(participant_headers):
+    response = client.get("/assessments/does-not-exist", headers=participant_headers)
 
     assert response.status_code == 404
 
 
-def test_full_create_upload_results_flow():
-    assessment_id = _create_assessment().json()["id"]
+def test_full_create_upload_results_flow(participant_headers, clinician_headers):
+    assessment_id = _create_assessment(participant_headers).json()["id"]
 
-    upload_response = _upload_audio(assessment_id)
+    upload_response = _upload_audio(assessment_id, participant_headers)
     assert upload_response.status_code == 200
     assert upload_response.json() == {"id": assessment_id, "status": "complete"}
 
-    results_response = client.get(f"/assessments/{assessment_id}/results")
+    # A clinician (not just the owning participant) can also read it.
+    results_response = client.get(f"/assessments/{assessment_id}/results", headers=clinician_headers)
     assert results_response.status_code == 200
     body = results_response.json()
 
@@ -187,19 +191,33 @@ def test_full_create_upload_results_flow():
     assert isinstance(body["modelExplanation"]["indicators"], list)
 
 
-def test_longitudinal_comparison_populates_previous_assessment(monkeypatch):
-    first_id = _create_assessment().json()["id"]
-    _upload_audio(first_id)
+def test_results_403_for_a_different_participant(participant_headers):
+    from backend.services.auth import issue_token
+
+    assessment_id = _create_assessment(participant_headers).json()["id"]
+    _upload_audio(assessment_id, participant_headers)
+
+    other_token = issue_token("participant", "CA-1002")
+    response = client.get(
+        f"/assessments/{assessment_id}/results", headers={"Authorization": f"Bearer {other_token}"}
+    )
+
+    assert response.status_code == 403
+
+
+def test_longitudinal_comparison_populates_previous_assessment(monkeypatch, participant_headers):
+    first_id = _create_assessment(participant_headers).json()["id"]
+    _upload_audio(first_id, participant_headers)
 
     monkeypatch.setattr(
         assessments_module,
         "predict",
         lambda *a, **kw: _fake_predict_result(risk_score=0.6, needs_review=True, word_count=20, concepts_identified=12.0),
     )
-    second_id = _create_assessment().json()["id"]
-    _upload_audio(second_id)
+    second_id = _create_assessment(participant_headers).json()["id"]
+    _upload_audio(second_id, participant_headers)
 
-    results = client.get(f"/assessments/{second_id}/results").json()
+    results = client.get(f"/assessments/{second_id}/results", headers=participant_headers).json()
 
     assert results["previousAssessment"]["id"] == first_id
     assert results["previousFeatures"] is not None
@@ -208,35 +226,43 @@ def test_longitudinal_comparison_populates_previous_assessment(monkeypatch):
     assert by_key["conceptCoverage"]["direction"] == "increased"
 
 
-def test_upload_audio_for_unknown_assessment_returns_404():
-    response = _upload_audio("does-not-exist")
+def test_upload_audio_for_unknown_assessment_returns_404(participant_headers):
+    response = _upload_audio("does-not-exist", participant_headers)
 
     assert response.status_code == 404
 
 
-def test_get_results_for_unknown_assessment_returns_404():
-    response = client.get("/assessments/does-not-exist/results")
+def test_get_results_for_unknown_assessment_returns_404(participant_headers):
+    response = client.get("/assessments/does-not-exist/results", headers=participant_headers)
 
     assert response.status_code == 404
 
 
-def test_get_results_before_audio_uploaded_returns_409():
-    assessment_id = _create_assessment().json()["id"]
+def test_get_results_before_audio_uploaded_returns_409(participant_headers):
+    assessment_id = _create_assessment(participant_headers).json()["id"]
 
-    response = client.get(f"/assessments/{assessment_id}/results")
+    response = client.get(f"/assessments/{assessment_id}/results", headers=participant_headers)
 
     assert response.status_code == 409
 
 
-def test_upload_audio_maps_audio_processing_error_to_422(monkeypatch):
+def test_upload_audio_maps_audio_processing_error_to_422(monkeypatch, participant_headers):
     from ml.features.acoustic import AudioProcessingError
 
     def _raise_audio_error(audio_bytes, *, task_id, language):
         raise AudioProcessingError("corrupt audio")
 
     monkeypatch.setattr(assessments_module, "predict", _raise_audio_error)
-    assessment_id = _create_assessment().json()["id"]
+    assessment_id = _create_assessment(participant_headers).json()["id"]
 
-    response = _upload_audio(assessment_id)
+    response = _upload_audio(assessment_id, participant_headers)
 
     assert response.status_code == 422
+
+
+def test_list_assessments_requires_clinician(participant_headers, clinician_headers):
+    participant_only = client.get("/assessments", headers=participant_headers)
+    assert participant_only.status_code == 403
+
+    as_clinician = client.get("/assessments", headers=clinician_headers)
+    assert as_clinician.status_code == 200

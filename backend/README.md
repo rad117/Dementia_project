@@ -10,9 +10,13 @@ serving `models/baseline_v2`, the acoustic+ASR+NLP fused model), and a
    inference and persists the result.
 3. `GET /assessments/{id}/results` — fetch the persisted result.
 
-`POST /auth/participant` and `GET /patients` (`backend/routes/demo_auth.py`)
-are demo-only stubs that let the frontend's login screen pass without real
-authentication — not production auth (see `docs/NEXT_STEPS.md`).
+Real authentication (`backend/routes/auth.py`, `backend/services/auth.py`):
+participants log in with a per-patient `login_code` (no password), clinicians
+with email/password (PBKDF2-hashed). Both issue an opaque bearer session
+token (12h TTL) -- pass it as `Authorization: Bearer <token>` on every other
+request. `backend/seed.py` seeds a demo clinician
+(`dr.sharma@memora.org` / `demo1234`) and the mock patient roster
+(`CA-1001`/`PT-1001`, ...) on every startup, idempotently.
 
 ## Setup
 
@@ -52,16 +56,35 @@ pytest tests/backend -v
 ```bash
 curl http://127.0.0.1:8000/health
 
+# Log in as the seeded participant PT-1001 (patient CA-1001) and capture the token.
+TOKEN=$(curl -s -X POST http://127.0.0.1:8000/auth/participant \
+     -H "Content-Type: application/json" \
+     -d '{"code": "PT-1001"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+
 curl -X POST http://127.0.0.1:8000/assessments \
      -H "Content-Type: application/json" \
-     -d '{"patientId": "demo-patient", "language": "en", "taskId": "cookie-theft"}'
+     -H "Authorization: Bearer $TOKEN" \
+     -d '{"patientId": "CA-1001", "language": "en", "taskId": "cookie-theft"}'
 # -> {"id": "<assessment_id>", "status": "pending_recording"}
 
 curl -X POST "http://127.0.0.1:8000/assessments/<assessment_id>/audio" \
+     -H "Authorization: Bearer $TOKEN" \
      -F "audio=@some_file.wav;type=audio/wav"
 # -> {"id": "<assessment_id>", "status": "complete"}
 
-curl http://127.0.0.1:8000/assessments/<assessment_id>/results
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:8000/assessments/<assessment_id>/results
+```
+
+Clinician endpoints (`GET /assessments`, the full `GET /patients` shape) need
+a clinician token instead:
+
+```bash
+CLIN_TOKEN=$(curl -s -X POST http://127.0.0.1:8000/auth/clinical \
+     -H "Content-Type: application/json" \
+     -d '{"email": "dr.sharma@memora.org", "password": "demo1234"}' \
+     | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+
+curl -H "Authorization: Bearer $CLIN_TOKEN" "http://127.0.0.1:8000/assessments?needsReview=true"
 ```
 
 Expect the final response to contain `assessment_id`, `language`,

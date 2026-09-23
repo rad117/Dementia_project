@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
 import { useSession } from "../../app/SessionContext.jsx";
-import { verifyParticipantCode, getPatients } from "../../services/index.js";
+import { verifyParticipantCode, verifyParticipantAssisted, getPatients } from "../../services/index.js";
 import Button from "../../components/common/Button.jsx";
 import styles from "./PatientLogin.module.css";
 
@@ -124,12 +124,14 @@ export default function PatientLogin() {
                         patients.map((patient) => (
                             <button
                                 key={patient.id}
-                                onClick={() => {
-                                    loginParticipant({
-                                        patientId: patient.id,
-                                        name: patient.name,
-                                    });
-                                    navigate("/patient");
+                                onClick={async () => {
+                                    try {
+                                        const result = await verifyParticipantAssisted(patient.id);
+                                        loginParticipant(result);
+                                        navigate("/patient");
+                                    } catch (e) {
+                                        setError(e.message || "We couldn't start the assessment for this participant.");
+                                    }
                                 }}
                             >
                                 {patient.name}

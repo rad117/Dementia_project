@@ -1,9 +1,19 @@
-from backend.db import create_assessment_row, get_assessment_row, init_db, save_result_row
+import pytest
+
+from backend.db import (
+    PatientNotFoundError,
+    create_assessment_row,
+    create_patient_row,
+    get_assessment_row,
+    init_db,
+    save_result_row,
+)
 
 
 def test_create_then_get_returns_pending_row(tmp_path):
     db_path = tmp_path / "test.db"
     init_db(db_path)
+    create_patient_row("patient-1", "Test Patient", login_code="PT-TEST-1", db_path=db_path)
 
     create_assessment_row("a1", "patient-1", "en", "cookie-theft", db_path=db_path)
     row = get_assessment_row("a1", db_path=db_path)
@@ -20,6 +30,7 @@ def test_create_then_get_returns_pending_row(tmp_path):
 def test_save_result_row_updates_status_and_fields(tmp_path):
     db_path = tmp_path / "test.db"
     init_db(db_path)
+    create_patient_row("patient-2", "Test Patient", login_code="PT-TEST-2", db_path=db_path)
     create_assessment_row("a2", "patient-2", "en", "cookie-theft", db_path=db_path)
 
     save_result_row(
@@ -50,3 +61,13 @@ def test_get_assessment_row_returns_none_for_unknown_id(tmp_path):
     init_db(db_path)
 
     assert get_assessment_row("does-not-exist", db_path=db_path) is None
+
+
+def test_create_assessment_row_raises_for_unknown_patient(tmp_path):
+    db_path = tmp_path / "test.db"
+    init_db(db_path)
+
+    with pytest.raises(PatientNotFoundError):
+        create_assessment_row("a3", "no-such-patient", "en", "cookie-theft", db_path=db_path)
+
+    assert get_assessment_row("a3", db_path=db_path) is None
