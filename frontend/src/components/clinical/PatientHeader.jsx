@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { FileText, History, Plus } from "lucide-react";
 import Button from "../common/Button.jsx";
 import Status from "../common/Status.jsx";
+import Bezel from "../common/Bezel.jsx";
 import styles from "./PatientHeader.module.css";
 
 export default function PatientHeader({ patient, onExport }) {
@@ -9,7 +10,7 @@ export default function PatientHeader({ patient, onExport }) {
   const needsReview = patient.latestAssessment?.screening.needsClinicianReview;
 
   return (
-    <div className={styles.header}>
+    <Bezel className="mb-5" innerClassName={`${styles.header} p-5`}>
       <div className={styles.identity}>
         <h1 className={styles.name}>{patient.name}</h1>
         <div className={styles.metaRow}>
@@ -47,6 +48,6 @@ export default function PatientHeader({ patient, onExport }) {
           <FileText size={16} aria-hidden="true" /> Export report
         </Button>
       </div>
-    </div>
+    </Bezel>
   );
 }

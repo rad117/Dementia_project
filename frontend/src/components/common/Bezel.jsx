@@ -8,9 +8,11 @@
  */
 export default function Bezel({ children, className = "", innerClassName = "" }) {
   return (
-    <div className={`rounded-[22px] bg-line/40 p-1.5 ring-1 ring-line-strong/50 ${className}`}>
+    <div
+      className={`rounded-[22px] bg-line/40 p-1.5 ring-1 ring-line-strong/50 print:bg-white print:p-0 print:ring-0 ${className}`}
+    >
       <div
-        className={`rounded-[16px] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,.5)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] ${innerClassName}`}
+        className={`rounded-[16px] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,.5)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,.06)] print:shadow-none ${innerClassName}`}
       >
         {children}
       </div>

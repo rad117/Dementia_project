@@ -7,6 +7,7 @@ import ChangeSummary from "./ChangeSummary.jsx";
 import AISummary from "./AISummary.jsx";
 import ModelExplanation from "./ModelExplanation.jsx";
 import Accordion from "../common/Accordion.jsx";
+import Stagger from "../motion/Stagger.jsx";
 import clinicalStyles from "./clinical.module.css";
 import styles from "./AssessmentAnalysisSections.module.css";
 
@@ -67,13 +68,13 @@ export default function AssessmentAnalysisSections({ results, history = [] }) {
   (whatChanged ?? []).forEach((c) => (changeByKey[c.key] = c));
 
   return (
-    <div className={styles.stack}>
-      <div className={clinicalStyles.twoCol}>
+    <Stagger className={styles.stack}>
+      <Stagger.Item className={clinicalStyles.twoCol}>
         <ScreeningSummary screening={assessment.screening} />
         <QualityCard quality={assessment.quality} />
-      </div>
+      </Stagger.Item>
 
-      <div>
+      <Stagger.Item>
         <h2 className={styles.groupTitle}>Key indicators</h2>
         <div className={styles.indicatorGrid}>
           {keyIndicators.map((indicator) => {
@@ -91,9 +92,9 @@ export default function AssessmentAnalysisSections({ results, history = [] }) {
             );
           })}
         </div>
-      </div>
+      </Stagger.Item>
 
-      <div className={clinicalStyles.twoCol}>
+      <Stagger.Item className={clinicalStyles.twoCol}>
         <FeatureSection
           title="Speech characteristics"
           items={[
@@ -144,9 +145,9 @@ export default function AssessmentAnalysisSections({ results, history = [] }) {
             { label: "Syntactic complexity", value: features.linguistic.syntacticComplexity },
           ]}
         />
-      </div>
+      </Stagger.Item>
 
-      <div className={clinicalStyles.twoCol}>
+      <Stagger.Item className={clinicalStyles.twoCol}>
         <FeatureSection
           title="Semantic / task analysis"
           items={[
@@ -168,16 +169,20 @@ export default function AssessmentAnalysisSections({ results, history = [] }) {
           ]}
           footnote="Accent, dialect, hearing, speech production differences, dentures, recording quality and language-specific phonology can all affect these measures."
         />
-      </div>
+      </Stagger.Item>
 
-      <ChangeSummary whatChanged={whatChanged} />
+      <Stagger.Item>
+        <ChangeSummary whatChanged={whatChanged} />
+      </Stagger.Item>
 
-      <TranscriptViewer transcript={transcript} />
+      <Stagger.Item>
+        <TranscriptViewer transcript={transcript} />
+      </Stagger.Item>
 
-      <div className={clinicalStyles.twoCol}>
+      <Stagger.Item className={clinicalStyles.twoCol}>
         <AISummary summary={aiSummary} />
         <ModelExplanation explanation={modelExplanation} />
-      </div>
-    </div>
+      </Stagger.Item>
+    </Stagger>
   );
 }

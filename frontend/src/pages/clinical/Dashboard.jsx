@@ -8,6 +8,7 @@ import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
 import clinicalStyles from "../../components/clinical/clinical.module.css";
 import styles from "./Dashboard.module.css";
 
@@ -86,7 +87,7 @@ export default function ClinicalDashboard() {
       {!error && (
         <>
           {/* Priority 1: Needs review queue */}
-          <section id="needs-review" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
+          <FadeInUp as="section" id="needs-review" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
             <div className={clinicalStyles.panelHeader}>
               <div>
                 <div className={styles.headerRow}>
@@ -105,10 +106,10 @@ export default function ClinicalDashboard() {
               <EmptyState title="Nothing needs review right now" description="All assessments have been reviewed or are within stable limits." />
             )}
             {stats && stats.needsReview.length > 0 && <AssessmentsTable rows={toRows(stats.needsReview)} />}
-          </section>
+          </FadeInUp>
 
           {/* Priority 2: Operational Caseload Summary */}
-          <div id="insights" className={styles.summaryGrid}>
+          <FadeInUp id="insights" className={styles.summaryGrid} delay={0.08}>
             {stats ? (
               summaryTiles(stats).map((tile, i) => (
                 <SummaryTile key={tile.label} icon={tile.icon} label={tile.label} value={tile.value} style={{ animationDelay: `${i * 40}ms` }} />
@@ -116,10 +117,10 @@ export default function ClinicalDashboard() {
             ) : (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} height="96px" radius="md" />)
             )}
-          </div>
+          </FadeInUp>
 
           {/* Priority 3: Recent Assessments */}
-          <section id="recent-assessments" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
+          <FadeInUp as="section" id="recent-assessments" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`} delay={0.16}>
             <div className={clinicalStyles.panelHeader}>
               <div>
                 <h2 className={clinicalStyles.panelTitle}>Recent assessments</h2>
@@ -131,7 +132,7 @@ export default function ClinicalDashboard() {
               <EmptyState title="No assessments yet" description="Completed assessments will appear here." />
             )}
             {stats && stats.recentRows.length > 0 && <AssessmentsTable rows={toRows(stats.recentRows)} />}
-          </section>
+          </FadeInUp>
         </>
       )}
     </div>

@@ -9,6 +9,7 @@ import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
 import IconButton from "../../components/common/IconButton.jsx";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
 import clinicalStyles from "../../components/clinical/clinical.module.css";
 
 export default function ClinicalAssessmentDetail() {
@@ -69,7 +70,7 @@ export default function ClinicalAssessmentDetail() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+      <FadeInUp style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <IconButton icon={ChevronLeft} label="Back to patient" variant="outline" onClick={() => navigate(`/clinical/patients/${patient.id}`)} />
           <div>
@@ -84,7 +85,7 @@ export default function ClinicalAssessmentDetail() {
             </Button>
           </Link>
         )}
-      </div>
+      </FadeInUp>
 
       <AssessmentAnalysisSections results={results} history={history} />
 

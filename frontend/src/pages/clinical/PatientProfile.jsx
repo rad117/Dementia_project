@@ -10,6 +10,8 @@ import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
+import Stagger from "../../components/motion/Stagger.jsx";
 import clinicalStyles from "../../components/clinical/clinical.module.css";
 import styles from "./PatientProfile.module.css";
 
@@ -79,7 +81,9 @@ export default function ClinicalPatientProfile() {
 
   return (
     <div>
-      <PatientHeader patient={patient} onExport={() => window.print()} />
+      <FadeInUp>
+        <PatientHeader patient={patient} onExport={() => window.print()} />
+      </FadeInUp>
 
       {!latest ? (
         <EmptyState title="No assessments yet" description="This patient has not completed an assessment." />
@@ -99,13 +103,13 @@ export default function ClinicalPatientProfile() {
       )}
 
       {previous.length > 0 && (
-        <section id="previous-assessments" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
+        <FadeInUp as="section" id="previous-assessments" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
           <div className={clinicalStyles.panelHeader}>
             <h2 className={clinicalStyles.panelTitle}>Previous assessments</h2>
           </div>
-          <div className={styles.previousList}>
+          <Stagger className={styles.previousList}>
             {previous.map(({ assessment }) => (
-              <div
+              <Stagger.Item
                 key={assessment.id}
                 className={styles.previousRow}
                 role="button"
@@ -121,10 +125,10 @@ export default function ClinicalPatientProfile() {
                 <Status tone={assessment.screening.needsClinicianReview ? "attention" : "positive"}>
                   {assessment.screening.needsClinicianReview ? "Review recommended" : "Reviewed"}
                 </Status>
-              </div>
+              </Stagger.Item>
             ))}
-          </div>
-        </section>
+          </Stagger>
+        </FadeInUp>
       )}
 
       <div className={clinicalStyles.sectionSpacer}>

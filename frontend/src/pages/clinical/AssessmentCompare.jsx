@@ -9,7 +9,8 @@ import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
 import IconButton from "../../components/common/IconButton.jsx";
-import clinicalStyles from "../../components/clinical/clinical.module.css";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
+import Bezel from "../../components/common/Bezel.jsx";
 import styles from "./AssessmentCompare.module.css";
 
 const CHART_COLORS = {
@@ -100,13 +101,13 @@ export default function ClinicalAssessmentCompare() {
 
   return (
     <div>
-      <div className={styles.header} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <FadeInUp className={styles.header} style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <IconButton icon={ChevronLeft} label="Back to patient" variant="outline" onClick={() => navigate(`/clinical/patients/${patient.id}`)} />
         <div>
           <p style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>{patient.name} · {patient.id}</p>
           <h1 style={{ fontSize: 24 }}>Longitudinal analysis</h1>
         </div>
-      </div>
+      </FadeInUp>
 
       {history.length < 2 ? (
         <EmptyState
@@ -130,7 +131,7 @@ export default function ClinicalAssessmentCompare() {
             ))}
           </div>
 
-          <div className={`${clinicalStyles.panel} ${styles.chartPanel}`}>
+          <Bezel innerClassName={styles.chartPanel} className="fade-in-up">
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
@@ -159,7 +160,7 @@ export default function ClinicalAssessmentCompare() {
                 <p className={styles.pointValue}>{chartData[chartData.length - 1]?.value} {metric.unit}</p>
               </div>
             </div>
-          </div>
+          </Bezel>
         </>
       )}
     </div>

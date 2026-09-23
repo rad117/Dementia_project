@@ -4,6 +4,12 @@
   padding: var(--space-5);
   background: var(--white);
   animation: tile-in var(--duration-medium) var(--ease-standard) backwards;
+  transition: box-shadow 0.2s var(--ease-standard), transform 0.2s var(--ease-standard);
+}
+
+.tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 @keyframes tile-in {

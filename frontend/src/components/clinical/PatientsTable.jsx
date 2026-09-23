@@ -6,7 +6,7 @@ export default function PatientsTable({ patients }) {
   const navigate = useNavigate();
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} fade-in-up`}>
       <table className={styles.table}>
         <thead>
           <tr>

@@ -7,6 +7,7 @@ import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
 import clinicalStyles from "../../components/clinical/clinical.module.css";
 import styles from "./Patients.module.css";
 
@@ -48,7 +49,7 @@ export default function ClinicalPatients() {
         <h1 className={styles.title}>Patients</h1>
       </div>
 
-      <div className={styles.filterBar}>
+      <FadeInUp className={styles.filterBar}>
         <input
           type="search"
           className={styles.searchInput}
@@ -88,9 +89,9 @@ export default function ClinicalPatients() {
           <option value="name">Sort: name (A–Z)</option>
           <option value="review">Sort: needs review first</option>
         </select>
-      </div>
+      </FadeInUp>
 
-      <div className={clinicalStyles.panel}>
+      <FadeInUp className={clinicalStyles.panel} delay={0.08}>
         {loading && <Skeleton height="280px" radius="md" />}
         {!loading && error && <ErrorState description={error} onRetry={() => setFilters({ ...filters })} />}
         {!loading && !error && patients?.length === 0 && (
@@ -106,7 +107,7 @@ export default function ClinicalPatients() {
           />
         )}
         {!loading && !error && patients?.length > 0 && <PatientsTable patients={patients} />}
-      </div>
+      </FadeInUp>
     </div>
   );
 }
