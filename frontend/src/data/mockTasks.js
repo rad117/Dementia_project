@@ -11,32 +11,28 @@ export const pictureDescriptionTask = {
     "Take your time. There is no need to rush.",
   ],
   prompt: "Describe what you see in this picture.",
-  // Original, non-photographic composed scene — deliberately neutral and
-  // culturally generic, avoiding any specific copyrighted clinical stimulus.
-  // Structural complexity (multiple characters, two independent mishaps,
-  // foreground/background depth) is deliberately matched to standardized
-  // picture-description stimuli used in speech-based cognitive research, so
-  // elicited speech length/complexity stays comparable to the training data
-  // without reusing any copyrighted content.
   imageAlt:
-    "An illustrated kitchen scene: a boy on a tilting three-legged stool reaches into a cookie jar on a high shelf while a girl below reaches up toward him, a woman dries a dish nearby without noticing water overflowing from a sink, a cat reacts to the spreading puddle, and a tree is visible through a window in the background.",
+    "A kitchen scene: a boy stands on a wooden stool reaching into an open cabinet for a jar labeled COOKIES, while a girl below reaches up toward him. A woman at the sink washes a dish as water runs from the tap, with a window, potted plant, and trees visible behind her. The refrigerator is covered with photos and a sign reading 'Good Food Happier People', and the counter holds a fruit bowl, cutting boards, and a jar of utensils. A wooden table in the foreground has a vase of white flowers and a mug.",
   expectedConcepts: [
     "kitchen",
     "boy",
     "girl",
     "stool",
-    "tilting",
     "reaching",
     "cookie jar",
+    "cabinet",
     "shelf",
     "woman",
-    "drying dish",
+    "washing dishes",
     "sink",
-    "overflowing water",
-    "cat",
+    "water",
+    "running water",
     "window",
-    "tree",
-    "falling",
+    "plant",
+    "refrigerator",
+    "photos",
+    "fruit",
+    "flowers",
   ],
   estimatedMinutes: "5–8 minutes",
 };
