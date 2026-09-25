@@ -8,11 +8,14 @@ scale.
 """
 
 import json
+import os
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent / "assessments.db"
+# DB_PATH env var lets a deployed host (e.g. Render) point this at a
+# persistent disk mount instead of the container's ephemeral filesystem.
+DB_PATH = Path(os.environ.get("DB_PATH", str(Path(__file__).resolve().parent / "assessments.db")))
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS assessments (

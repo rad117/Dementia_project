@@ -132,7 +132,7 @@ export default function ClinicalPatientProfile() {
       )}
 
       <div className={clinicalStyles.sectionSpacer}>
-        <ExportPanel />
+        <ExportPanel fileName={`memora-patient-${patient.id}.pdf`} />
       </div>
     </div>
   );

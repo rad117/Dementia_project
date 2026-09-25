@@ -90,7 +90,7 @@ export default function ClinicalAssessmentDetail() {
       <AssessmentAnalysisSections results={results} history={history} />
 
       <div className={clinicalStyles.sectionSpacer}>
-        <ExportPanel />
+        <ExportPanel fileName={`memora-assessment-${patient.id}-${results.assessment.date}.pdf`} />
       </div>
     </div>
   );

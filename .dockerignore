@@ -1,0 +1,14 @@
+.git
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+frontend
+tests
+data
+ml.zip
+CONTEXT.docx
+CONTEXT.md
+Project_Master_Context_Team.pdf
+docs
+backend/*.db

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: memora-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: BACKEND_CORS_ORIGINS
+        sync: false

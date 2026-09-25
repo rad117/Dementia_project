@@ -45,6 +45,33 @@ CORS defaults to local dev origins (`http://localhost:5173`,
 (comma-separated) to the real deployed frontend origin(s) before any
 non-local deployment.
 
+## Deploy (Render)
+
+Needs a long-running process (not a serverless function), so it's deployed as
+a Render Web Service from the root-level `Dockerfile`.
+
+1. Push this repo to GitHub (Render builds from a connected repo).
+2. In the Render dashboard: **New +** -> **Blueprint**, point it at this repo.
+   Render reads `render.yaml` (repo root) and provisions the web service on
+   the **free** plan.
+3. Set the `BACKEND_CORS_ORIGINS` env var (marked `sync: false` in
+   `render.yaml`, so Render prompts for it) to the deployed frontend's origin,
+   e.g. `https://your-app.vercel.app`.
+4. Health check path is `/health` (`backend/routes/assessments.py`) — Render
+   uses this to know when the service is ready.
+
+**Free-tier tradeoff**: `render.yaml` deliberately has no persistent disk (a
+paid-plan feature). `DB_PATH`/`HF_HOME` fall back to the code defaults, which
+live in the container's ephemeral filesystem — so the SQLite database resets
+and the ~484MB `small.en` faster-whisper checkpoint re-downloads from Hugging
+Face Hub every time the service redeploys or wakes from Render's free-tier
+idle sleep (services sleep after 15 min with no traffic; the next request
+wakes it, taking roughly 30-60s plus the model download before it's fully
+warm). Fine for demoing the live flow in one sitting; assessment history
+won't survive between sessions. If that becomes a problem, switch `plan` in
+`render.yaml` to a paid tier and add a `disk` block mounted at `/data`, then
+point `DB_PATH`/`HF_HOME` at it.
+
 ## Test
 
 ```bash
