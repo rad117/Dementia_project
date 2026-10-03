@@ -17,3 +17,6 @@ backend/*.db
 *.mp3
 *.flac
 *.m4a
+
+# Generated summary doc, not source
+/Memora_Project_Summary.docx
