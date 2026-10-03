@@ -198,6 +198,44 @@ def test_transcribe_passes_language_through(monkeypatch):
     assert seen["language"] == "hi"
 
 
+def _use_recording_get_model(monkeypatch, seen):
+    def _fake_get_model(model_size):
+        seen["model_size"] = model_size
+        return _FakeModel([_FakeSegment("ok")])
+
+    monkeypatch.setattr(transcribe_module, "_get_model", _fake_get_model)
+
+
+def test_transcribe_defaults_to_small_en_without_whisper_model_env_var(monkeypatch):
+    monkeypatch.delenv("WHISPER_MODEL", raising=False)
+    seen = {}
+    _use_recording_get_model(monkeypatch, seen)
+
+    transcribe(b"irrelevant, model is faked")
+
+    assert seen["model_size"] == "small.en"
+
+
+def test_transcribe_honors_whisper_model_env_var(monkeypatch):
+    monkeypatch.setenv("WHISPER_MODEL", "base.en")
+    seen = {}
+    _use_recording_get_model(monkeypatch, seen)
+
+    transcribe(b"irrelevant, model is faked")
+
+    assert seen["model_size"] == "base.en"
+
+
+def test_transcribe_explicit_model_size_overrides_whisper_model_env_var(monkeypatch):
+    monkeypatch.setenv("WHISPER_MODEL", "base.en")
+    seen = {}
+    _use_recording_get_model(monkeypatch, seen)
+
+    transcribe(b"irrelevant, model is faked", model_size="tiny.en")
+
+    assert seen["model_size"] == "tiny.en"
+
+
 pytestmark_real = pytest.mark.skipif(
     not Path("data/adresso2021").exists(),
     reason="real ADReSSo dataset not present locally",

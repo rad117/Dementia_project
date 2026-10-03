@@ -9,3 +9,5 @@ services:
     envVars:
       - key: BACKEND_CORS_ORIGINS
         sync: false
+      - key: WHISPER_MODEL
+        value: base.en

@@ -63,14 +63,26 @@ a Render Web Service from the root-level `Dockerfile`.
 **Free-tier tradeoff**: `render.yaml` deliberately has no persistent disk (a
 paid-plan feature). `DB_PATH`/`HF_HOME` fall back to the code defaults, which
 live in the container's ephemeral filesystem — so the SQLite database resets
-and the ~484MB `small.en` faster-whisper checkpoint re-downloads from Hugging
-Face Hub every time the service redeploys or wakes from Render's free-tier
-idle sleep (services sleep after 15 min with no traffic; the next request
-wakes it, taking roughly 30-60s plus the model download before it's fully
-warm). Fine for demoing the live flow in one sitting; assessment history
-won't survive between sessions. If that becomes a problem, switch `plan` in
-`render.yaml` to a paid tier and add a `disk` block mounted at `/data`, then
-point `DB_PATH`/`HF_HOME` at it.
+and the Whisper checkpoint re-downloads from Hugging Face Hub every time the
+service redeploys or wakes from Render's free-tier idle sleep (services sleep
+after 15 min with no traffic; the next request wakes it, taking roughly
+30-60s plus the model download before it's fully warm). Fine for demoing the
+live flow in one sitting; assessment history won't survive between sessions.
+If that becomes a problem, switch `plan` in `render.yaml` to a paid tier and
+add a `disk` block mounted at `/data`, then point `DB_PATH`/`HF_HOME` at it.
+
+**ASR model size / memory**: `ml/asr/transcribe.py`'s `model_size` defaults to
+the `WHISPER_MODEL` env var (falling back to `small.en` for local dev if
+unset). `small.en` is ~484MB on disk and realistically ~500-700MB resident
+once loaded — too large to share Render's free-tier 512MB RAM ceiling with
+the rest of the ML stack, and was the cause of OOM-kill 502s on audio upload
+in production. `render.yaml` sets `WHISPER_MODEL=base.en` (~145MB resident)
+for the deployed service; `models/baseline_v2`'s classifier was validated on
+`small.en`-derived transcripts, so re-run the held-out eval in
+`ml/training/` against `base.en` transcripts before trusting production
+scores as equivalent. `backend/main.py`'s startup `lifespan` also preloads
+the model (`ml/inference/predict.py::preload`) so a cold start fails at
+deploy time rather than mid-request if it still doesn't fit.
 
 ## Test
 

@@ -1,6 +1,8 @@
+import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from backend import db
 from backend.schemas.assessment import (
@@ -14,6 +16,13 @@ from backend.services.results_mapper import build_assessment_info, build_results
 from ml.inference.predict import AudioProcessingError, predict
 
 router = APIRouter()
+
+# Render's free-tier instance has 512MB RAM total, shared with the resident
+# ASR/acoustic model stack -- an unbounded upload can push a request over that
+# ceiling on its own. 20MB comfortably covers a few minutes of compressed
+# speech for a short screening task.
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_AUDIO_UPLOAD_BYTES", 20 * 1024 * 1024))
+_UPLOAD_CHUNK_BYTES = 1024 * 1024
 
 
 def _check_owns_row(subject: dict, patient_id: str) -> None:
@@ -62,9 +71,17 @@ async def upload_assessment_audio(
         raise HTTPException(status_code=404, detail="Assessment not found")
     _check_owns_row(subject, row["patient_id"])
 
-    audio_bytes = await audio.read()
+    chunks: list[bytes] = []
+    total_bytes = 0
+    while chunk := await audio.read(_UPLOAD_CHUNK_BYTES):
+        total_bytes += len(chunk)
+        if total_bytes > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail="Audio file too large")
+        chunks.append(chunk)
+    audio_bytes = b"".join(chunks)
+
     try:
-        result = predict(audio_bytes, task_id=row["task_id"], language=row["language"])
+        result = await run_in_threadpool(predict, audio_bytes, task_id=row["task_id"], language=row["language"])
     except AudioProcessingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

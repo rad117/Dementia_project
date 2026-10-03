@@ -139,6 +139,58 @@ def test_predict_fused_model_calls_asr_and_nlp(tmp_path, monkeypatch):
     assert isinstance(result["risk_score"], float)
 
 
+def test_preload_loads_whisper_model_for_fused_model_version(tmp_path, monkeypatch):
+    monkeypatch.delenv("WHISPER_MODEL", raising=False)
+    seen = {}
+
+    def _fake_get_model(model_size):
+        seen["model_size"] = model_size
+
+    monkeypatch.setattr("ml.asr.transcribe._get_model", _fake_get_model)
+
+    model_dir = tmp_path / "fused_model"
+    _write_dummy_model(model_dir)
+    (model_dir / "metadata.json").write_text(
+        json.dumps({"selected_model": "dummy", "model_version": "test-fused-v0"})
+    )
+
+    predict_module.preload(model_dir)
+
+    assert seen["model_size"] == "small.en"
+
+
+def test_preload_honors_whisper_model_env_var(tmp_path, monkeypatch):
+    monkeypatch.setenv("WHISPER_MODEL", "base.en")
+    seen = {}
+
+    def _fake_get_model(model_size):
+        seen["model_size"] = model_size
+
+    monkeypatch.setattr("ml.asr.transcribe._get_model", _fake_get_model)
+
+    model_dir = tmp_path / "fused_model"
+    _write_dummy_model(model_dir)
+    (model_dir / "metadata.json").write_text(
+        json.dumps({"selected_model": "dummy", "model_version": "test-fused-v0"})
+    )
+
+    predict_module.preload(model_dir)
+
+    assert seen["model_size"] == "base.en"
+
+
+def test_preload_skips_whisper_for_acoustics_only_model(tmp_path, monkeypatch):
+    def _fail_if_called(model_size):
+        raise AssertionError("Whisper model should not be preloaded for an acoustics-only model")
+
+    monkeypatch.setattr("ml.asr.transcribe._get_model", _fail_if_called)
+
+    model_dir = tmp_path / "dummy_model"
+    _write_dummy_model(model_dir)  # model_version="test-dummy-v0" -- no "fused"
+
+    predict_module.preload(model_dir)
+
+
 def test_predict_fused_model_wraps_transcription_error(tmp_path, monkeypatch):
     from ml.asr.transcribe import TranscriptionError
 

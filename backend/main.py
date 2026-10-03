@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import db, seed
 from backend.routes.assessments import router
 from backend.routes.auth import router as auth_router
+from ml.inference.predict import preload as preload_model
 
 # Local dev defaults (Vite's default port, both hostname forms). Set
 # BACKEND_CORS_ORIGINS (comma-separated) to the real deployed frontend
@@ -18,6 +19,7 @@ _DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 async def lifespan(app: FastAPI):
     db.init_db()
     seed.run()
+    preload_model()
     yield
 
 

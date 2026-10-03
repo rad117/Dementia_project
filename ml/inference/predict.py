@@ -19,6 +19,7 @@ acoustics-only fallback by passing model_dir explicitly.
 """
 
 import json
+import os
 from pathlib import Path
 from threading import Lock
 
@@ -68,6 +69,22 @@ def _load_model(model_dir: Path):
         loaded = (pipeline, feature_names, metadata)
         _cache[key] = loaded
         return loaded
+
+
+def preload(model_dir: Path = Path("models/baseline_v2")) -> None:
+    """Eagerly loads the sklearn pipeline and, for a fused model, the Whisper
+    model -- called from backend/main.py's startup lifespan so the first real
+    request after a cold start doesn't pay for a Whisper checkpoint download +
+    load (on top of running inference) while a user is waiting. Trades a
+    slower container start for that cost surfacing as a failed deploy instead
+    of a live request timing out or OOMing.
+    """
+    _, _, metadata = _load_model(model_dir)
+    if "fused" in metadata.get("model_version", ""):
+        from ml.asr.transcribe import DEFAULT_WHISPER_MODEL
+        from ml.asr.transcribe import _get_model as _get_whisper_model
+
+        _get_whisper_model(os.environ.get("WHISPER_MODEL", DEFAULT_WHISPER_MODEL))
 
 
 def _quality_signals(asr_result: dict, speech_features: dict, requested_language: str) -> dict:

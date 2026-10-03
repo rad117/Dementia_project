@@ -16,10 +16,13 @@ change.
 """
 
 import io
+import os
 from pathlib import Path
 from threading import Lock
 
 from faster_whisper import WhisperModel
+
+DEFAULT_WHISPER_MODEL = "small.en"
 
 _model_cache: dict[str, WhisperModel] = {}
 _cache_lock = Lock()
@@ -51,7 +54,7 @@ def _serialize_words(segment) -> list[dict]:
     ]
 
 
-def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: str = "small.en") -> dict:
+def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: str | None = None) -> dict:
     """Transcribes audio and returns a flat dict of ASR-layer fields.
 
     Returns {"transcript_text", "word_count", "avg_logprob",
@@ -61,7 +64,13 @@ def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: s
     NLP/disfluency and pronunciation-proxy layers, not by the acoustic
     model's own feature vector. Raises TranscriptionError on
     unreadable/corrupt audio or an unsupported input type.
+
+    model_size defaults to the WHISPER_MODEL env var (falling back to
+    "small.en" if unset) rather than a hardcoded literal, so a memory-
+    constrained deployment (e.g. Render's free tier) can serve a smaller
+    checkpoint without a code change -- see backend/README.md's deploy notes.
     """
+    model_size = model_size or os.environ.get("WHISPER_MODEL", DEFAULT_WHISPER_MODEL)
     if isinstance(audio, (str, Path)):
         source = str(audio)
     elif isinstance(audio, bytes):

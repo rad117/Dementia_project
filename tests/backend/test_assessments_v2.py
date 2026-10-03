@@ -260,6 +260,19 @@ def test_upload_audio_maps_audio_processing_error_to_422(monkeypatch, participan
     assert response.status_code == 422
 
 
+def test_upload_audio_over_size_limit_returns_413(monkeypatch, participant_headers):
+    monkeypatch.setattr(assessments_module, "MAX_UPLOAD_BYTES", 10)
+    assessment_id = _create_assessment(participant_headers).json()["id"]
+
+    response = client.post(
+        f"/assessments/{assessment_id}/audio",
+        files={"audio": ("recording.webm", io.BytesIO(b"x" * 100), "audio/webm")},
+        headers=participant_headers,
+    )
+
+    assert response.status_code == 413
+
+
 def test_list_assessments_requires_clinician(participant_headers, clinician_headers):
     participant_only = client.get("/assessments", headers=participant_headers)
     assert participant_only.status_code == 403
