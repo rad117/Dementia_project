@@ -16,9 +16,6 @@ export default function PublicHeader() {
         </Link>
         <nav className={styles.nav} aria-label="Primary navigation">
           <a href="#how-it-works">How it works</a>
-          <a href="#assessment-approach">Assessment</a>
-          <a href="#clinical-review">Clinical Review</a>
-          <a href="#privacy">Privacy</a>
         </nav>
         <div className={styles.actions}>
           <IconButton

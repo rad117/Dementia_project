@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ClipboardList, AlertCircle, Users, Activity, ArrowRight } from "lucide-react";
 import { getAllAssessments, getPatients } from "../../services/index.js";
 import SummaryTile from "../../components/clinical/SummaryTile.jsx";
@@ -13,10 +13,16 @@ import clinicalStyles from "../../components/clinical/clinical.module.css";
 import styles from "./Dashboard.module.css";
 
 export default function ClinicalDashboard() {
+  const location = useLocation();
   const [assessments, setAssessments] = useState(null);
   const [patients, setPatients] = useState(null);
   const [error, setError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    if (!location.hash) return;
+    document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+  }, [location.hash]);
 
   useEffect(() => {
     let cancelled = false;
