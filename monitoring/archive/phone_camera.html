@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CARE-VLM Phone Camera Capture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        #video {
+            width: 100%;
+            border-radius: 10px;
+            background: #000;
+            margin-bottom: 15px;
+            transform: scaleX(-1);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 120px;
+        }
+        
+        #startBtn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        #startBtn:hover {
+            background: #45a049;
+        }
+        
+        #startBtn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        #stopBtn {
+            background: #f44336;
+            color: white;
+        }
+        
+        #stopBtn:hover {
+            background: #da190b;
+        }
+        
+        #stopBtn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .settings {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-item {
+            margin-bottom: 12px;
+        }
+        
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        
+        .status {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #2e7d32;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            border-left-color: #f44336;
+            color: #c62828;
+        }
+        
+        .status.warning {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            color: #e65100;
+        }
+        
+        .stats {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .stats-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #1565c0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 CARE-VLM Camera</h1>
+            <p>Phone Camera Capture & Stream</p>
+        </div>
+        
+        <video id="video" playsinline autoplay></video>
+        
+        <div class="settings">
+            <div class="setting-item">
+                <label for="serverUrl">Server URL:</label>
+                <input type="text" id="serverUrl" placeholder="http://192.168.1.50:5000" value="http://192.168.1.50:5000">
+            </div>
+            
+            <div class="setting-item">
+                <label for="fpsSelect">FPS (Frames Per Second):</label>
+                <select id="fpsSelect">
+                    <option value="1">1 FPS (Low bandwidth)</option>
+                    <option value="2" selected>2 FPS (Recommended)</option>
+                    <option value="3">3 FPS (High quality)</option>
+                    <option value="5">5 FPS (Very high)</option>
+                </select>
+            </div>
+            
+            <div class="setting-item">
+                <label for="qualitySelect">Quality (JPEG):</label>
+                <select id="qualitySelect">
+                    <option value="0.5">50% (Low)</option>
+                    <option value="0.7" selected>70% (Medium)</option>
+                    <option value="0.9">90% (High)</option>
+                    <option value="1">100% (Maximum)</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startCapture()">▶ START STREAMING</button>
+            <button id="stopBtn" onclick="stopCapture()" disabled>⏹ STOP</button>
+        </div>
+        
+        <div id="status" class="status" style="display:none;"></div>
+        
+        <div class="stats">
+            <div class="stats-row">
+                <span>Status:</span>
+                <span id="statusText">Not started</span>
+            </div>
+            <div class="stats-row">
+                <span>Frames Sent:</span>
+                <span id="frameCount">0</span>
+            </div>
+            <div class="stats-row">
+                <span>FPS:</span>
+                <span id="fpsDisplay">0</span>
+            </div>
+            <div class="stats-row">
+                <span>Data Sent:</span>
+                <span id="dataSent">0 MB</span>
+            </div>
+            <div class="stats-row">
+                <span>Connection:</span>
+                <span id="connectionStatus">Disconnected</span>
+            </div>
+        </div>
+        
+        <div class="info">
+            <strong>ℹ️ How it works:</strong><br>
+            1. Enter server URL (IP:5000)<br>
+            2. Click START to begin streaming<br>
+            3. Phone camera streams to server<br>
+            4. Server processes frames<br>
+            5. Check server terminal for detection
+        </div>
+    </div>
+
+    <script>
+        let video = document.getElementById('video');
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        let isStreaming = false;
+        let framesSent = 0;
+        let dataSentMB = 0;
+        let startTime = null;
+        let lastFrameTime = 0;
+        let fpsArray = [];
+        
+        // Request camera access
+        async function requestCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment', // Back camera
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                });
+                video.srcObject = stream;
+                return true;
+            } catch (error) {
+                showStatus('Error: Cannot access camera. ' + error.message, 'error');
+                console.error('Camera access error:', error);
+                return false;
+            }
+        }
+        
+        // Show status message
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+        }
+        
+        // Start streaming
+        async function startCapture() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const quality = parseFloat(document.getElementById('qualitySelect').value);
+            const fps = parseInt(document.getElementById('fpsSelect').value);
+            
+            if (!serverUrl) {
+                showStatus('Error: Please enter server URL', 'error');
+                return;
+            }
+            
+            if (!video.srcObject) {
+                const hasCamera = await requestCamera();
+                if (!hasCamera) return;
+            }
+            
+            isStreaming = true;
+            framesSent = 0;
+            dataSentMB = 0;
+            startTime = Date.now();
+            fpsArray = [];
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('statusText').textContent = '🔴 Streaming...';
+            document.getElementById('connectionStatus').textContent = '🟢 Connected';
+            
+            showStatus('✅ Streaming started! Sending frames to: ' + serverUrl, 'success');
+            
+            // Start sending frames
+            const intervalTime = 1000 / fps;
+            const captureInterval = setInterval(() => {
+                if (!isStreaming) {
+                    clearInterval(captureInterval);
+                    return;
+                }
+                
+                sendFrame(serverUrl, quality, fps);
+            }, intervalTime);
+        }
+        
+        // Send frame to server
+        function sendFrame(serverUrl, quality, targetFps) {
+            try {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                if (canvas.width === 0 || canvas.height === 0) {
+                    return; // Video not ready yet
+                }
+                
+                // Draw video to canvas (flip horizontally for mirror effect)
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -canvas.width, 0);
+                ctx.scale(-1, 1);
+                
+                // Convert to JPEG
+                canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    
+                    const formData = new FormData();
+                    formData.append('frame', blob, 'frame.jpg');
+                    formData.append('timestamp', new Date().toISOString());
+                    formData.append('fps', targetFps);
+                    formData.append('resolution', `${canvas.width}x${canvas.height}`);
+                    
+                    // Send to server
+                    fetch(serverUrl + '/frame', {
+                        method: 'POST',
+                        body: formData,
+                        timeout: 5000
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            framesSent++;
+                            dataSentMB += blob.size / (1024 * 1024);
+                            
+                            // Update FPS calculation
+                            const now = Date.now();
+                            if (lastFrameTime > 0) {
+                                const timeDiff = (now - lastFrameTime) / 1000;
+                                if (timeDiff > 0) {
+                                    fpsArray.push(1 / timeDiff);
+                                    if (fpsArray.length > 10) fpsArray.shift();
+                                }
+                            }
+                            lastFrameTime = now;
+                            
+                            // Update stats every 5 frames
+                            if (framesSent % 5 === 0) {
+                                updateStats();
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Send error:', error);
+                        if (framesSent === 0) {
+                            showStatus('Error: Cannot connect to server. Check IP and port.', 'error');
+                            document.getElementById('connectionStatus').textContent = '🔴 Connection Failed';
+                        }
+                    });
+                }, 'image/jpeg', quality);
+            } catch (error) {
+                console.error('Capture error:', error);
+            }
+        }
+        
+        // Update statistics
+        function updateStats() {
+            document.getElementById('frameCount').textContent = framesSent;
+            document.getElementById('dataSent').textContent = dataSentMB.toFixed(2) + ' MB';
+            
+            if (fpsArray.length > 0) {
+                const avgFps = (fpsArray.reduce((a, b) => a + b) / fpsArray.length).toFixed(1);
+                document.getElementById('fpsDisplay').textContent = avgFps;
+            }
+        }
+        
+        // Stop streaming
+        function stopCapture() {
+            isStreaming = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('statusText').textContent = '⏸ Stopped';
+            document.getElementById('connectionStatus').textContent = '🔵 Disconnected';
+            
+            showStatus(`✅ Streaming stopped. Sent ${framesSent} frames (${dataSentMB.toFixed(2)} MB)`, 'success');
+        }
+        
+        // Request camera on load
+        window.addEventListener('load', () => {
+            requestCamera();
+            showStatus('📱 Camera ready. Enter server URL and click START.', 'warning');
+        });
+        
+        // Handle visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isStreaming) {
+                stopCapture();
+                showStatus('⚠️ Streaming paused (app in background)', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>
