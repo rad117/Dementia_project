@@ -4,6 +4,8 @@ AI-assisted, multilingual cognitive screening and memory-assistance platform. Pa
 
 > **Not a diagnostic tool.** This is a screening/monitoring aid and research prototype. It flags cases for clinician review — it does not diagnose dementia.
 
+**Two halves, one platform:** speech-based cognitive screening (below) and camera-based **safety monitoring** (falls, appliances left on, wandering), both reviewed from the same clinician dashboard. See [Safety monitoring](#safety-monitoring).
+
 ## How it works
 
 ```
@@ -26,6 +28,7 @@ See [`CONTEXT.md`](CONTEXT.md) for the full product/research spec, dataset audit
 backend/     FastAPI app — auth, assessments API, SQLite persistence
 frontend/    React 19 + Vite — patient screening flow + clinician dashboard
 ml/          Feature extraction (acoustic/ASR/NLP), training, inference
+monitoring/  Safety monitoring: rules engine, vision observer, service, storage
 models/      Committed trained model artifacts (baseline_v1, baseline_v2)
 data/        Dataset docs only — raw audio is never committed (gitignored)
 tests/       Backend + ML test suites (pytest)
@@ -80,6 +83,22 @@ Two trained baselines are committed under `models/`:
 - **`baseline_v2`** — acoustic + ASR + NLP fused (live default; better cross-validated ROC-AUC, higher per-request latency)
 
 Trained on the ADReSSo 2021 dataset (English, Cookie Theft task, N=164, binary dementia/control labels). See [`models/README.md`](models/README.md) and [`docs/dataset_audit.md`](docs/dataset_audit.md) for details, and `CONTEXT.md` Section 8 for the constraints (no speaker leakage, no overclaiming clinical validity) this project is held to.
+
+## Safety monitoring
+
+A room camera feeds a vision model and a temporal rules engine (`monitoring/`) that raises caregiver alerts for falls, a stove or tap left on, prolonged absence, night-time wandering and repeated unfinished tasks. Alerts appear on the clinician dashboard under **Safety monitor** (`/clinical/safety`) and are stored in the same SQLite database as assessments. It monitors hazards and behaviour only; it does not diagnose and does not classify faces or expressions.
+
+- **No camera or GPU needed to try it:** open Safety monitor and press *Run demo scenario* (an unattended stove followed by a fall).
+- **Live camera is optional:** `pip install -r monitoring/requirements.txt` plus a GPU. Without it, `POST /monitoring/frame` answers `{"status":"unavailable"}` and everything else keeps working.
+- Full details, endpoints and configuration: [`monitoring/README.md`](monitoring/README.md).
+
+One-command checks and a launcher: `scripts/check_all.sh`, `scripts/run_all.sh`.
+
+## Contributors
+
+- **Speech screening platform** (frontend, backend, ML): Radhesh Nair, Leena Sathvika Pallampati. Full commit history is preserved.
+- **Safety monitoring (CARE-VLM)**: the senior's internship project, integrated into `monitoring/`; original scripts are in `monitoring/archive/`.
+- **Integration**: Sheersh.
 
 ## Deployment
 
