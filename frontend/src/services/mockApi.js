@@ -232,6 +232,68 @@ export async function logout() {
   return null;
 }
 
+// ---- Safety monitoring (mirrors backend /monitoring/*) -------------------
+// In-memory only. The mock reports the live camera as unavailable, exactly
+// what the real backend does on a machine without the vision libraries.
+let mockMonitoringAlerts = [];
+
+function mockDemoAlerts() {
+  const at = (secondsAgo) => new Date(Date.now() - secondsAgo * 1000).toISOString().slice(0, 19);
+  return [
+    {
+      at: at(15), level: "CRITICAL", kind: "fall_motionless",
+      summary: "On the floor and not moving for 10s.",
+      evidence: "posture=lying, on_floor=True, motion=still",
+      action: "Attend immediately. Treat as a fall until confirmed otherwise.",
+    },
+    {
+      at: at(25), level: "CRITICAL", kind: "fall_event",
+      summary: "A fall was observed.",
+      evidence: "fall_in_progress=True, sudden_descent=True, posture=standing, location=hallway",
+      action: "Attend immediately. Do not move them if they report neck, back or hip pain — call for medical help.",
+    },
+    {
+      at: at(55), level: "HIGH", kind: "unattended_heat_stove",
+      summary: "The stove has been on and unattended for 0 min.",
+      evidence: "stove state=on; no person in view.",
+      action: "Attend now and turn the stove off.",
+    },
+  ].map((a) => ({ ...a, patient_id: null, source: "demo" }));
+}
+
+export async function getMonitoringStatus() {
+  await delay(DELAY_MS.short);
+  return {
+    live_camera: {
+      available: false,
+      missing: ["torch", "transformers"],
+      observer: "not_loaded",
+      observer_error: null,
+      last_error: null,
+    },
+    counters: { frames: 0, clips: 0, observer: "not_loaded" },
+    state: { heat_on: {}, water_running_s: 0, seconds_since_seen: null, on_floor_s: 0, recent_activities: [] },
+  };
+}
+
+export async function getMonitoringAlerts() {
+  await delay(DELAY_MS.short);
+  return mockMonitoringAlerts;
+}
+
+export async function runMonitoringDemo() {
+  await delay(DELAY_MS.medium);
+  mockMonitoringAlerts = mockDemoAlerts();
+  return mockMonitoringAlerts;
+}
+
+export async function clearMonitoringDemo() {
+  await delay(DELAY_MS.short);
+  const deleted = mockMonitoringAlerts.length;
+  mockMonitoringAlerts = [];
+  return { deleted };
+}
+
 export const mockApi = {
   getPatients,
   getPatient,
@@ -245,6 +307,10 @@ export const mockApi = {
   verifyParticipantAssisted,
   loginClinicalUser,
   logout,
+  getMonitoringStatus,
+  getMonitoringAlerts,
+  runMonitoringDemo,
+  clearMonitoringDemo,
 };
 
 export { ApiError };
