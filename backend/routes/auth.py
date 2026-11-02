@@ -123,18 +123,23 @@ def list_patients(
     return items
 
 
-@router.get("/patients/{patient_id}", response_model=PatientResponse)
-def get_patient(patient_id: str, subject: dict = Depends(require_subject)) -> PatientResponse:
+@router.get("/patients/{patient_id}", response_model=PatientListItem)
+def get_patient(patient_id: str, subject: dict = Depends(require_subject)) -> PatientListItem:
     if subject["type"] == "participant" and subject["id"] != patient_id:
         raise HTTPException(status_code=403, detail="Not authorized to view this patient")
     patient = db.get_patient_row(patient_id)
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient not found")
-    return PatientResponse(
+    # Same shape as a GET /patients roster row: PatientHeader.jsx reads
+    # latestAssessment/assessmentCount, matching mockApi.js's getPatient.
+    rows = db.list_assessments_by_patient(patient_id)  # newest first
+    return PatientListItem(
         id=patient["id"],
         name=patient["name"],
         preferred_language=patient["preferred_language"],
         age=patient["age"],
+        assessment_count=len(rows),
+        latest_assessment=build_assessment_info(rows[0]) if rows else None,
     )
 
 
@@ -146,7 +151,9 @@ def list_patient_assessments(
         raise HTTPException(status_code=403, detail="Not authorized to view this patient")
     if db.get_patient_row(patient_id) is None:
         raise HTTPException(status_code=404, detail="Patient not found")
-    rows = db.list_assessments_by_patient(patient_id)
+    # Oldest first, matching mockApi.js: the clinician pages treat the last
+    # item as the latest assessment and plot trends left to right.
+    rows = list(reversed(db.list_assessments_by_patient(patient_id)))
     return [
         AssessmentSummary(
             id=row["id"],
