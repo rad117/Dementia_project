@@ -20,3 +20,8 @@ backend/*.db
 
 # Generated summary doc, not source
 /Memora_Project_Summary.docx
+
+# Safety-monitoring: recorded observations describe a real person in a real room
+*.jsonl
+*.pt
+monitoring/**/*.db

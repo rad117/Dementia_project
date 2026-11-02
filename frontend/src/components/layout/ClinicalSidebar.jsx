@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, TrendingUp, Settings, Info, ShieldCheck, X } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, TrendingUp, ShieldAlert, Settings, Info, ShieldCheck, X } from "lucide-react";
 import styles from "./ClinicalSidebar.module.css";
 
 const SECTIONS = [
@@ -18,6 +18,10 @@ const SECTIONS = [
   {
     label: "Insights",
     items: [{ to: "/clinical#insights", label: "Longitudinal analysis", icon: TrendingUp, isAnchor: true }],
+  },
+  {
+    label: "Safety",
+    items: [{ to: "/clinical/safety", label: "Safety monitor", icon: ShieldAlert }],
   },
   {
     label: "System",

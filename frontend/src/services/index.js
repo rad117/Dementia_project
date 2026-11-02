@@ -19,4 +19,8 @@ export const {
   verifyParticipantAssisted,
   loginClinicalUser,
   logout,
+  getMonitoringStatus,
+  getMonitoringAlerts,
+  runMonitoringDemo,
+  clearMonitoringDemo,
 } = api;

@@ -122,6 +122,25 @@ export async function logout() {
   return request("/auth/logout", { method: "POST" });
 }
 
+export async function getMonitoringStatus() {
+  return request("/monitoring/status");
+}
+
+export async function getMonitoringAlerts(params = {}) {
+  const query = new URLSearchParams(
+    Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "")
+  ).toString();
+  return request(`/monitoring/alerts${query ? `?${query}` : ""}`);
+}
+
+export async function runMonitoringDemo() {
+  return request("/monitoring/demo", { method: "POST" });
+}
+
+export async function clearMonitoringDemo() {
+  return request("/monitoring/demo", { method: "DELETE" });
+}
+
 export const api = {
   getPatients,
   getPatient,
@@ -135,6 +154,10 @@ export const api = {
   verifyParticipantAssisted,
   loginClinicalUser,
   logout,
+  getMonitoringStatus,
+  getMonitoringAlerts,
+  runMonitoringDemo,
+  clearMonitoringDemo,
 };
 
 export { ApiError };
