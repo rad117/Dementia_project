@@ -35,11 +35,11 @@ export default function AssessmentsTable({ rows }) {
               <td className={styles.numCell}>{row.assessment.date}</td>
               <td>{row.assessment.language}</td>
               <td>{row.assessment.task.name}</td>
-              <td className={styles.numCell}>{row.assessment.quality.durationSeconds}s</td>
+              <td className={styles.numCell}>{Math.round(row.assessment.quality.durationSeconds)}s</td>
               <td style={{ textTransform: "capitalize" }}>{row.assessment.quality.audioQuality}</td>
               <td>
                 <Status tone={row.assessment.screening.needsClinicianReview ? "attention" : "positive"}>
-                  {row.assessment.screening.needsClinicianReview ? "Review recommended" : "Reviewed"}
+                  {row.assessment.screening.needsClinicianReview ? "Review recommended" : "Within range"}
                 </Status>
               </td>
               <td className={styles.openCell}>Open →</td>

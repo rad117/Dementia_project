@@ -20,6 +20,8 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 14px;
+  background: var(--white);
+  color: inherit;
 }
 
 .select {

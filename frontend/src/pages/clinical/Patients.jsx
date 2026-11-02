@@ -77,7 +77,7 @@ export default function ClinicalPatients() {
         >
           <option value="all">All review statuses</option>
           <option value="needs-review">Review recommended</option>
-          <option value="reviewed">Reviewed</option>
+          <option value="reviewed">Within range</option>
         </select>
         <select
           className={styles.select}

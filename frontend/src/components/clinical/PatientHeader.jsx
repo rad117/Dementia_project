@@ -23,7 +23,7 @@ export default function PatientHeader({ patient, onExport }) {
           <span>Last assessment: {patient.latestAssessment?.date ?? "—"}</span>
           {patient.latestAssessment && (
             <Status tone={needsReview ? "attention" : "positive"}>
-              {needsReview ? "Review recommended" : "Reviewed"}
+              {needsReview ? "Review recommended" : "Within range"}
             </Status>
           )}
         </div>
