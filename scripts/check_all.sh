@@ -14,6 +14,9 @@ echo "== frontend lint =="
 [ -d frontend/node_modules ] || npm --prefix frontend ci
 npm --prefix frontend run lint
 
+echo "== frontend tests =="
+npm --prefix frontend run test
+
 echo "== frontend build =="
 npm --prefix frontend run build
 

@@ -5,13 +5,18 @@ packages are not installed -- the speech-screening half of the application
 never depends on this module being usable.
 """
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend.schemas.monitoring import AlertOut, MonitoringStatus, ObservationIn
+from backend.services.auth import require_clinician
 from monitoring import store
 from monitoring.service import MAX_FRAME_BYTES, get_service
 
-router = APIRouter(prefix="/monitoring", tags=["monitoring"])
+# Camera observations describe a real person in a real room: every endpoint
+# here requires a signed-in clinician (same bearer token as the dashboard).
+router = APIRouter(
+    prefix="/monitoring", tags=["monitoring"], dependencies=[Depends(require_clinician)]
+)
 
 
 def _alert_out(row: dict) -> AlertOut:
