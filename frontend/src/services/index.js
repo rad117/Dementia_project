@@ -21,6 +21,7 @@ export const {
   logout,
   getMonitoringStatus,
   getMonitoringAlerts,
+  getMonitoringScenarios,
   runMonitoringDemo,
   clearMonitoringDemo,
 } = api;

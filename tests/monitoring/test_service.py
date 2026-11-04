@@ -136,3 +136,51 @@ def test_demo_alert_text_has_no_zero_minutes_or_fake_clock():
     assert "14:00" not in text
     absence = next(a for a in alerts if a["kind"] == "prolonged_absence")
     assert absence["evidence"].endswith(" s ago")
+
+
+@pytest.mark.parametrize(
+    ("scenario", "expected_kind"),
+    [
+        ("kitchen_fall", "unattended_heat_stove"),
+        ("bathroom_fall", "fall_motionless"),
+        ("night_wandering", "night_door_open"),
+        ("tap_running", "unattended_water"),
+        ("repeated_task", "repetition_searching for keys"),
+    ],
+)
+def test_each_scenario_fires_its_signature_alert_through_the_rules(scenario, expected_kind):
+    alerts = get_service().run_demo(scenario=scenario, patient_id="p1")
+    assert expected_kind in [a["kind"] for a in alerts]
+    saved = store.list_alerts(patient_id="p1")
+    assert saved and all(r["scenario"] == scenario and r["source"] == "demo" for r in saved)
+
+
+def test_scenarios_stack_per_patient_and_rerun_replaces_only_that_scenario():
+    svc = get_service()
+    fall = len(svc.run_demo(scenario="bathroom_fall", patient_id="p1"))
+    tap = len(svc.run_demo(scenario="tap_running", patient_id="p1"))
+    other = len(svc.run_demo(scenario="bathroom_fall", patient_id="p2"))
+    svc.run_demo(scenario="bathroom_fall", patient_id="p1")  # rerun: no duplicates
+    assert len(store.list_alerts(patient_id="p1")) == fall + tap
+    assert len(store.list_alerts(patient_id="p2")) == other
+
+
+def test_unknown_scenario_raises():
+    with pytest.raises(KeyError):
+        get_service().run_demo(scenario="nope")
+
+
+def test_init_db_adds_scenario_column_to_an_old_database(tmp_path):
+    import sqlite3
+
+    old = tmp_path / "old.db"
+    with sqlite3.connect(old) as conn:
+        conn.execute(
+            "CREATE TABLE monitoring_alerts (id INTEGER PRIMARY KEY, at TEXT, level TEXT, "
+            "kind TEXT, summary TEXT, evidence TEXT, action TEXT, patient_id TEXT, "
+            "source TEXT NOT NULL DEFAULT 'live')"
+        )
+    store.init_db(old)
+    with sqlite3.connect(old) as conn:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(monitoring_alerts)")}
+    assert "scenario" in cols

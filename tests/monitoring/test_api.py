@@ -105,3 +105,25 @@ def test_monitoring_requires_login(method, path):
 def test_participants_cannot_read_monitoring_data(participant_headers):
     r = raw_client.get("/monitoring/alerts", headers=participant_headers)
     assert r.status_code in (401, 403)
+
+
+def test_scenarios_are_listed(client):
+    ids = [s["id"] for s in client.get("/monitoring/scenarios").json()]
+    assert ids[0] == "kitchen_fall" and "night_wandering" in ids
+
+
+def test_demo_scenario_for_a_patient_is_filterable(client):
+    r = client.post("/monitoring/demo", params={"patient_id": "demo-patient", "scenario": "night_wandering"})
+    assert r.status_code == 201
+    assert all(a["scenario"] == "night_wandering" for a in r.json())
+    listed = client.get("/monitoring/alerts", params={"patient_id": "demo-patient"}).json()
+    assert {a["kind"] for a in listed} >= {"night_door_open"}
+
+
+def test_demo_rejects_unknown_scenario_and_patient(client):
+    assert client.post("/monitoring/demo", params={"scenario": "nope"}).status_code == 404
+    assert client.post("/monitoring/demo", params={"patient_id": "nobody"}).status_code == 404
+
+
+def test_scenarios_require_clinician():
+    assert raw_client.get("/monitoring/scenarios").status_code == 401

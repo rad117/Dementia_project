@@ -46,6 +46,13 @@ class AlertOut(BaseModel):
     action: str
     patient_id: str | None = None
     source: str = "live"
+    scenario: str | None = None
+
+
+class ScenarioOut(BaseModel):
+    id: str
+    title: str
+    description: str
 
 
 class LiveCameraStatus(BaseModel):

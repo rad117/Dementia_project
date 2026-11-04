@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS monitoring_alerts (
     evidence TEXT NOT NULL,
     action TEXT NOT NULL,
     patient_id TEXT,
-    source TEXT NOT NULL DEFAULT 'live'
+    source TEXT NOT NULL DEFAULT 'live',
+    scenario TEXT
 );
 CREATE TABLE IF NOT EXISTS monitoring_observations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +49,10 @@ def _path(db_path: Path | None) -> Path:
 def init_db(db_path: Path | None = None) -> None:
     with sqlite3.connect(_path(db_path)) as conn:
         conn.executescript(_SCHEMA)
+        # Databases created before demo scenarios existed lack this column.
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(monitoring_alerts)")}
+        if "scenario" not in cols:
+            conn.execute("ALTER TABLE monitoring_alerts ADD COLUMN scenario TEXT")
 
 
 def save_alerts(
@@ -55,6 +60,7 @@ def save_alerts(
     *,
     patient_id: str | None = None,
     source: str = "live",
+    scenario: str | None = None,
     db_path: Path | None = None,
 ) -> None:
     if not events:
@@ -62,11 +68,11 @@ def save_alerts(
     with sqlite3.connect(_path(db_path)) as conn:
         conn.executemany(
             "INSERT INTO monitoring_alerts "
-            "(at, level, kind, summary, evidence, action, patient_id, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "(at, level, kind, summary, evidence, action, patient_id, source, scenario) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (e["at"], e["level"], e["kind"], e["summary"], e["evidence"],
-                 e["action"], patient_id, source)
+                 e["action"], patient_id, source, scenario)
                 for e in events
             ],
         )
@@ -136,3 +142,13 @@ def clear_source(source: str, db_path: Path | None = None) -> int:
         a = conn.execute("DELETE FROM monitoring_alerts WHERE source = ?", (source,)).rowcount
         conn.execute("DELETE FROM monitoring_observations WHERE source = ?", (source,))
     return a
+
+
+def clear_demo_scenario(scenario: str, patient_id: str | None, db_path: Path | None = None) -> int:
+    """Delete earlier demo alerts of one scenario for one patient (or for no patient)."""
+    with sqlite3.connect(_path(db_path)) as conn:
+        return conn.execute(
+            "DELETE FROM monitoring_alerts WHERE source = 'demo' AND scenario = ? "
+            "AND patient_id IS ?",
+            (scenario, patient_id),
+        ).rowcount

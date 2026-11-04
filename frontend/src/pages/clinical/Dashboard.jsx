@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ClipboardList, AlertCircle, Users, Activity, ArrowRight } from "lucide-react";
-import { getAllAssessments, getPatients } from "../../services/index.js";
+import { ClipboardList, AlertCircle, Users, Activity, ArrowRight, ShieldAlert } from "lucide-react";
+import { getAllAssessments, getMonitoringAlerts, getPatients } from "../../services/index.js";
 import SummaryTile from "../../components/clinical/SummaryTile.jsx";
 import AssessmentsTable from "../../components/clinical/AssessmentsTable.jsx";
+import SafetyAlertList from "../../components/clinical/SafetyAlertList.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
@@ -18,6 +19,7 @@ export default function ClinicalDashboard() {
   const [patients, setPatients] = useState(null);
   const [error, setError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [safetyAlerts, setSafetyAlerts] = useState(null);
 
   useEffect(() => {
     if (!location.hash) return;
@@ -40,6 +42,22 @@ export default function ClinicalDashboard() {
       cancelled = true;
     };
   }, [retryKey]);
+
+  // Loaded on its own: a monitoring hiccup must never blank the caseload view.
+  useEffect(() => {
+    let cancelled = false;
+    getMonitoringAlerts({ limit: 50 })
+      .then((a) => !cancelled && setSafetyAlerts(a))
+      .catch(() => !cancelled && setSafetyAlerts([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [retryKey]);
+
+  const urgentSafety = useMemo(
+    () => (safetyAlerts ?? []).filter((a) => a.level === "CRITICAL" || a.level === "HIGH").length,
+    [safetyAlerts]
+  );
 
   const patientNameById = useMemo(() => {
     const map = {};
@@ -112,6 +130,35 @@ export default function ClinicalDashboard() {
               <EmptyState title="Nothing needs review right now" description="All assessments have been reviewed or are within stable limits." />
             )}
             {stats && stats.needsReview.length > 0 && <AssessmentsTable rows={toRows(stats.needsReview)} />}
+          </FadeInUp>
+
+          {/* Priority 1b: Safety alerts from home monitoring */}
+          <FadeInUp as="section" id="safety-alerts" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`} delay={0.04}>
+            <div className={clinicalStyles.panelHeader}>
+              <div>
+                <div className={styles.headerRow}>
+                  <h2 className={clinicalStyles.panelTitle}>Safety alerts</h2>
+                  {urgentSafety > 0 && <span className={styles.urgentBadge}>{urgentSafety} urgent</span>}
+                </div>
+                <p className={clinicalStyles.panelSubtitle}>
+                  Falls, unattended appliances and wandering detected by home safety monitoring.
+                </p>
+              </div>
+              <Button as={Link} to="/clinical/safety" variant="secondary" size="sm">
+                Open safety monitor <ArrowRight size={15} aria-hidden="true" />
+              </Button>
+            </div>
+            {safetyAlerts === null && <Skeleton height="96px" radius="md" />}
+            {safetyAlerts && safetyAlerts.length === 0 && (
+              <EmptyState
+                icon={ShieldAlert}
+                title="No safety alerts"
+                description="Nothing needs attention from home monitoring."
+              />
+            )}
+            {safetyAlerts && safetyAlerts.length > 0 && (
+              <SafetyAlertList alerts={safetyAlerts.slice(0, 3)} patientNameById={patientNameById} compact />
+            )}
           </FadeInUp>
 
           {/* Priority 2: Operational Caseload Summary */}

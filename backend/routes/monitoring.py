@@ -7,10 +7,11 @@ never depends on this module being usable.
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from backend.schemas.monitoring import AlertOut, MonitoringStatus, ObservationIn
+from backend import db
+from backend.schemas.monitoring import AlertOut, MonitoringStatus, ObservationIn, ScenarioOut
 from backend.services.auth import require_clinician
 from monitoring import store
-from monitoring.service import MAX_FRAME_BYTES, get_service
+from monitoring.service import DEFAULT_SCENARIO, MAX_FRAME_BYTES, SCENARIOS, get_service, list_scenarios
 
 # Camera observations describe a real person in a real room: every endpoint
 # here requires a signed-in clinician (same bearer token as the dashboard).
@@ -58,11 +59,24 @@ async def submit_frame(frame: UploadFile = File(...), patient_id: str | None = N
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.get("/scenarios", response_model=list[ScenarioOut])
+def scenarios() -> list[dict]:
+    """The scripted incidents the demo can replay."""
+    return list_scenarios()
+
+
 @router.post("/demo", response_model=list[AlertOut], status_code=201)
-def run_demo(patient_id: str | None = None) -> list[AlertOut]:
-    """Replay a scripted incident (unattended stove, then a fall) as demo alerts."""
-    alerts = get_service().run_demo(patient_id=patient_id)
-    return [AlertOut(**a, patient_id=patient_id, source="demo") for a in alerts]
+def run_demo(patient_id: str | None = None, scenario: str = DEFAULT_SCENARIO) -> list[AlertOut]:
+    """Replay a scripted incident through the real rules engine as demo alerts.
+
+    Default scenario: an unattended stove, then a fall. See GET /monitoring/scenarios.
+    """
+    if scenario not in SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Unknown scenario '{scenario}'")
+    if patient_id and db.get_patient_row(patient_id) is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    alerts = get_service().run_demo(patient_id=patient_id, scenario=scenario)
+    return [AlertOut(**a, patient_id=patient_id, source="demo", scenario=scenario) for a in alerts]
 
 
 @router.delete("/demo")

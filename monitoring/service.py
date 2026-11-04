@@ -64,6 +64,76 @@ DEMO_TIMELINE: list[tuple[int, dict]] = [
           "motion": "still", "location": "hallway"}),
 ]
 
+_LYING = {"person_present": True, "posture": "lying", "on_floor": True, "motion": "still"}
+_WALKING = {"person_present": True, "posture": "standing", "motion": "active"}
+
+# Named incidents the clinician can replay for a chosen patient. Each one is a
+# sequence of structured observations -- exactly what the vision model emits --
+# fed through the real CareState rules (demo thresholds), so the alerts are
+# produced by production logic, not hard-coded. ``hour`` is the rules clock,
+# so night-time rules behave the same whenever the demo is run.
+DEFAULT_SCENARIO = "kitchen_fall"
+SCENARIOS: dict[str, dict] = {
+    "kitchen_fall": {
+        "title": "Stove left on, then a fall",
+        "description": "Cooking, walks away from a lit stove, then falls in the hallway.",
+        "hour": 14,
+        "timeline": DEMO_TIMELINE,
+    },
+    "bathroom_fall": {
+        "title": "Fall in the bathroom",
+        "description": "Becomes unsteady at the sink, falls and stays on the floor.",
+        "hour": 10,
+        "timeline": [
+            (0, {**_P, "location": "bathroom sink", "activity": "brushing teeth"}),
+            (5, {**_P, "location": "bathroom sink", "unsteady_or_swaying": True}),
+            (8, {**_P, "location": "bathroom", "fall_in_progress": True, "sudden_descent": True}),
+            (10, {**_LYING, "location": "bathroom floor"}),
+            (18, {**_LYING, "location": "bathroom floor"}),
+        ],
+    },
+    "night_wandering": {
+        "title": "Night-time wandering",
+        "description": "Up at 2 a.m., opens the front door and leaves the monitored area.",
+        "hour": 2,
+        "timeline": [
+            (0, {**_WALKING, "location": "bedroom doorway", "activity": "walking"}),
+            (10, {**_WALKING, "location": "hallway", "activity": "walking"}),
+            (20, {**_WALKING, "location": "front door", "activity": "opening the door",
+                  "door_open": True}),
+            (30, {"door_open": True}),
+            (50, {"door_open": True}),
+        ],
+    },
+    "tap_running": {
+        "title": "Tap left running",
+        "description": "Fills a glass at the sink and walks away with the tap on.",
+        "hour": 11,
+        "timeline": [
+            (0, {**_P, "location": "kitchen sink", "activity": "filling a glass",
+                 "water_running": True}),
+            (8, {"water_running": True}),
+            (30, {"water_running": True}),
+        ],
+    },
+    "repeated_task": {
+        "title": "Repeating an unfinished task",
+        "description": "Keeps going back to search for the same thing without finishing.",
+        "hour": 16,
+        "timeline": [
+            (0, {**_P, "location": "living room", "activity": "searching for keys"}),
+            (12, {**_P, "location": "hallway", "activity": "searching for keys"}),
+            (24, {**_P, "location": "living room", "activity": "searching for keys"}),
+            (36, {**_P, "location": "living room", "activity": "searching for keys"}),
+        ],
+    },
+}
+
+
+def list_scenarios() -> list[dict]:
+    return [{"id": k, "title": v["title"], "description": v["description"]}
+            for k, v in SCENARIOS.items()]
+
 
 class MonitoringService:
     def __init__(self, care_state: CareState | None = None, observer_factory=None,
@@ -205,27 +275,33 @@ class MonitoringService:
     # ------------------------------------------------------------------
     # scripted demo
 
-    def run_demo(self, *, patient_id: str | None = None) -> list[dict]:
-        """Replay DEMO_TIMELINE through a throwaway CareState.
+    def run_demo(self, *, patient_id: str | None = None,
+                 scenario: str = DEFAULT_SCENARIO) -> list[dict]:
+        """Replay a named scenario through a throwaway CareState.
 
         Uses its own state (short demo thresholds) so it never disturbs live
         monitoring, and tags everything source='demo' so it can be cleared.
+        Re-running a scenario for the same patient replaces its earlier alerts
+        instead of duplicating them; other scenarios' alerts are kept.
+        Raises KeyError for an unknown scenario.
         """
-        store.clear_source("demo")
+        spec = SCENARIOS[scenario]
+        timeline = spec["timeline"]
+        store.clear_demo_scenario(scenario, patient_id)
         demo_state = CareState.demo()
-        # Rules are evaluated at a fixed mid-afternoon time so the night-time
-        # rules never fire and the demo is identical at any hour; the alerts
-        # are stamped with the real wall-clock time they stand in for.
-        rules_base = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
-        shown_base = datetime.now() - timedelta(seconds=DEMO_TIMELINE[-1][0] + 5)
+        # Rules are evaluated on a fixed clock per scenario (mid-afternoon for
+        # most, 2 a.m. for night wandering) so the demo is identical at any
+        # hour; alerts are stamped with the real wall-clock time they stand for.
+        rules_base = datetime.now().replace(hour=spec["hour"], minute=0, second=0, microsecond=0)
+        shown_base = datetime.now() - timedelta(seconds=timeline[-1][0] + 5)
         alerts: list[dict] = []
-        for offset, partial in DEMO_TIMELINE:
+        for offset, partial in timeline:
             obs = {**EMPTY_OBSERVATION, **partial}
             events = demo_state.update(obs, now=rules_base + timedelta(seconds=offset))
             for e in events:
                 e.at = (shown_base + timedelta(seconds=offset)).isoformat(timespec="seconds")
                 alerts.append(e.to_dict())
-        store.save_alerts(alerts, patient_id=patient_id, source="demo")
+        store.save_alerts(alerts, patient_id=patient_id, source="demo", scenario=scenario)
         return alerts
 
 

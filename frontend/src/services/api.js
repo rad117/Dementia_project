@@ -133,8 +133,15 @@ export async function getMonitoringAlerts(params = {}) {
   return request(`/monitoring/alerts${query ? `?${query}` : ""}`);
 }
 
-export async function runMonitoringDemo() {
-  return request("/monitoring/demo", { method: "POST" });
+export async function getMonitoringScenarios() {
+  return request("/monitoring/scenarios");
+}
+
+export async function runMonitoringDemo({ scenario, patientId } = {}) {
+  const query = new URLSearchParams(
+    Object.entries({ scenario, patient_id: patientId }).filter(([, v]) => v)
+  ).toString();
+  return request(`/monitoring/demo${query ? `?${query}` : ""}`, { method: "POST" });
 }
 
 export async function clearMonitoringDemo() {
@@ -156,6 +163,7 @@ export const api = {
   logout,
   getMonitoringStatus,
   getMonitoringAlerts,
+  getMonitoringScenarios,
   runMonitoringDemo,
   clearMonitoringDemo,
 };

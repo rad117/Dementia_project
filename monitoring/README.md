@@ -36,9 +36,18 @@ camera frames -> clip buffer -> NurseObserver (vision model, fixed JSON schema)
 
 ## Demo without hardware
 
-Open **Safety monitor** in the clinician dashboard and press *Run demo scenario*,
-or `curl -X POST localhost:8000/monitoring/demo`. It replays an unattended stove
-followed by a fall using short demo thresholds.
+Open **Safety monitor** in the clinician dashboard, pick a patient and run one
+of the incident scenarios (stove left on then a fall, bathroom fall, night-time
+wandering, tap left running, repeating an unfinished task). Each scenario is a
+sequence of structured observations -- the same output the vision model
+produces -- replayed through the real `CareState` rules with short demo
+thresholds. Alerts are tagged "Simulated", linked to the patient, and appear on
+the clinical overview and the patient's profile.
+
+API: `GET /monitoring/scenarios`, then
+`POST /monitoring/demo?scenario=bathroom_fall&patient_id=<id>` (clinician token
+required). Re-running a scenario for the same patient replaces its earlier
+alerts; `DELETE /monitoring/demo` clears all simulated alerts.
 
 ## Configuration
 
