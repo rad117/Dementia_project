@@ -48,6 +48,11 @@ def _write_webm_opus_bytes(samples, sr):
     return buf.getvalue()
 
 
+# The model is faked in most tests, but transcribe() still decodes its input,
+# so they need real (tiny) audio rather than placeholder bytes.
+_TONE_WAV = _write_wav_bytes(*_sine_wave())
+
+
 class _FakeWord:
     def __init__(self, word, start, end, probability=0.95):
         self.word = word
@@ -134,7 +139,7 @@ def test_transcribe_joins_multiple_segments(monkeypatch):
     segments = [_FakeSegment("first part."), _FakeSegment("second part.")]
     _use_fake_model(monkeypatch, _FakeModel(segments))
 
-    result = transcribe(b"irrelevant, model is faked")
+    result = transcribe(_TONE_WAV)
 
     assert result["transcript_text"] == "first part. second part."
 
@@ -142,7 +147,7 @@ def test_transcribe_joins_multiple_segments(monkeypatch):
 def test_transcribe_handles_no_speech(monkeypatch):
     _use_fake_model(monkeypatch, _FakeModel([], duration=3.0))
 
-    result = transcribe(b"irrelevant, model is faked")
+    result = transcribe(_TONE_WAV)
 
     assert result["transcript_text"] == ""
     assert result["word_count"] == 0
@@ -155,7 +160,7 @@ def test_transcribe_returns_word_level_timestamps(monkeypatch):
     segment = _FakeSegment("hello world", start=0.0, end=0.9, words=words)
     _use_fake_model(monkeypatch, _FakeModel([segment], duration=0.9))
 
-    result = transcribe(b"irrelevant, model is faked")
+    result = transcribe(_TONE_WAV)
 
     assert len(result["segments"]) == 1
     seg = result["segments"][0]
@@ -181,7 +186,43 @@ def test_transcribe_wraps_model_errors(monkeypatch):
 
     _use_fake_model(monkeypatch, _BrokenModel())
     with pytest.raises(TranscriptionError):
+        transcribe(_TONE_WAV)
+
+
+def test_transcribe_raises_on_undecodable_bytes(monkeypatch):
+    _use_fake_model(monkeypatch, _FakeModel())
+    with pytest.raises(TranscriptionError):
         transcribe(b"garbage bytes")
+
+
+@pytest.mark.parametrize("kind", ["path", "wav", "webm"])
+def test_transcribe_hands_whisper_a_16khz_waveform(monkeypatch, tmp_path, kind):
+    # Regression: faster-whisper's own decoder breaks on PyAV >= 19, so the
+    # model must only ever receive already-decoded samples.
+    seen = {}
+
+    class _RecordingModel:
+        def transcribe(self, source, language=None, word_timestamps=None):
+            seen["source"] = source
+            return iter([_FakeSegment("ok")]), _FakeInfo(1.0)
+
+    _use_fake_model(monkeypatch, _RecordingModel())
+    samples, sr = _sine_wave(seconds=1.0, sr=48000)
+    if kind == "path":
+        audio = tmp_path / "tone.wav"
+        sf.write(str(audio), samples, sr)
+    elif kind == "wav":
+        audio = _write_wav_bytes(samples, sr)
+    else:
+        audio = _write_webm_opus_bytes(samples, sr)
+
+    transcribe(audio)
+
+    source = seen["source"]
+    assert isinstance(source, np.ndarray)
+    assert source.dtype == np.float32
+    assert source.ndim == 1
+    assert source.size == pytest.approx(16000, rel=0.1)
 
 
 def test_transcribe_passes_language_through(monkeypatch):
@@ -193,9 +234,47 @@ def test_transcribe_passes_language_through(monkeypatch):
             return iter([_FakeSegment("ok")]), _FakeInfo(1.0)
 
     _use_fake_model(monkeypatch, _RecordingModel())
-    transcribe(b"irrelevant, model is faked", language="hi")
+    transcribe(_TONE_WAV, language="hi")
 
     assert seen["language"] == "hi"
+
+
+def _use_recording_get_model(monkeypatch, seen):
+    def _fake_get_model(model_size):
+        seen["model_size"] = model_size
+        return _FakeModel([_FakeSegment("ok")])
+
+    monkeypatch.setattr(transcribe_module, "_get_model", _fake_get_model)
+
+
+def test_transcribe_defaults_to_small_en_without_whisper_model_env_var(monkeypatch):
+    monkeypatch.delenv("WHISPER_MODEL", raising=False)
+    seen = {}
+    _use_recording_get_model(monkeypatch, seen)
+
+    transcribe(_TONE_WAV)
+
+    assert seen["model_size"] == "small.en"
+
+
+def test_transcribe_honors_whisper_model_env_var(monkeypatch):
+    monkeypatch.setenv("WHISPER_MODEL", "base.en")
+    seen = {}
+    _use_recording_get_model(monkeypatch, seen)
+
+    transcribe(_TONE_WAV)
+
+    assert seen["model_size"] == "base.en"
+
+
+def test_transcribe_explicit_model_size_overrides_whisper_model_env_var(monkeypatch):
+    monkeypatch.setenv("WHISPER_MODEL", "base.en")
+    seen = {}
+    _use_recording_get_model(monkeypatch, seen)
+
+    transcribe(_TONE_WAV, model_size="tiny.en")
+
+    assert seen["model_size"] == "tiny.en"
 
 
 pytestmark_real = pytest.mark.skipif(

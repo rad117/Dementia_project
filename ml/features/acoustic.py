@@ -75,18 +75,25 @@ def _load_from_bytes(raw_bytes, sample_rate):
         raise AudioProcessingError(f"Could not decode audio bytes: {exc}") from exc
 
 
+def load_audio(audio: str | Path | bytes, *, sample_rate: int | None = None) -> tuple[np.ndarray, int]:
+    """Decodes a path or raw upload bytes to a mono float32 waveform at
+    sample_rate (default 16 kHz). Shared with ml/asr/transcribe.py so ASR
+    never depends on faster-whisper's own PyAV decoder. Raises
+    AudioProcessingError on unreadable/corrupt audio or an unsupported type."""
+    if isinstance(audio, (str, Path)):
+        try:
+            return _load_from_path(audio, sample_rate)
+        except Exception as exc:
+            raise AudioProcessingError(f"Could not load audio file: {exc}") from exc
+    if isinstance(audio, bytes):
+        return _load_from_bytes(audio, sample_rate)
+    raise AudioProcessingError(f"Unsupported audio input type: {type(audio)!r}")
+
+
 def extract_features(audio: str | Path | bytes, *, sample_rate: int | None = None) -> dict:
     """Returns a flat dict of scalar float features. Raises
     AudioProcessingError on unreadable, corrupt, or too-short/empty audio."""
-    if isinstance(audio, (str, Path)):
-        try:
-            y, sr = _load_from_path(audio, sample_rate)
-        except Exception as exc:
-            raise AudioProcessingError(f"Could not load audio file: {exc}") from exc
-    elif isinstance(audio, bytes):
-        y, sr = _load_from_bytes(audio, sample_rate)
-    else:
-        raise AudioProcessingError(f"Unsupported audio input type: {type(audio)!r}")
+    y, sr = load_audio(audio, sample_rate=sample_rate)
 
     duration_seconds = len(y) / sr if sr else 0.0
     if len(y) == 0 or duration_seconds < _MIN_DURATION_SECONDS or not np.all(np.isfinite(y)):

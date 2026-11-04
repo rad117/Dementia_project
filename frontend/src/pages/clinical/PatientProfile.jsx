@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { TrendingUp } from "lucide-react";
-import { getPatient, getPatientAssessments, getAssessmentResults } from "../../services/index.js";
+import { TrendingUp, ShieldAlert, ArrowRight } from "lucide-react";
+import { getPatient, getPatientAssessments, getAssessmentResults, getMonitoringAlerts } from "../../services/index.js";
 import PatientHeader from "../../components/clinical/PatientHeader.jsx";
 import AssessmentAnalysisSections from "../../components/clinical/AssessmentAnalysisSections.jsx";
 import ExportPanel from "../../components/clinical/ExportPanel.jsx";
+import SafetyAlertList from "../../components/clinical/SafetyAlertList.jsx";
 import Status from "../../components/common/Status.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
+import Stagger from "../../components/motion/Stagger.jsx";
 import clinicalStyles from "../../components/clinical/clinical.module.css";
 import styles from "./PatientProfile.module.css";
 
@@ -20,10 +23,24 @@ export default function ClinicalPatientProfile() {
   const [history, setHistory] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [safetyAlerts, setSafetyAlerts] = useState(null);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId]);
+
+  // Separate from the assessment load: monitoring is optional and must never
+  // block the speech-assessment view.
+  useEffect(() => {
+    let cancelled = false;
+    setSafetyAlerts(null);
+    getMonitoringAlerts({ patient_id: patientId, limit: 20 })
+      .then((a) => !cancelled && setSafetyAlerts(a))
+      .catch(() => !cancelled && setSafetyAlerts([]));
+    return () => {
+      cancelled = true;
+    };
   }, [patientId]);
 
   function load() {
@@ -79,7 +96,9 @@ export default function ClinicalPatientProfile() {
 
   return (
     <div>
-      <PatientHeader patient={patient} onExport={() => window.print()} />
+      <FadeInUp>
+        <PatientHeader patient={patient} onExport={() => window.print()} />
+      </FadeInUp>
 
       {!latest ? (
         <EmptyState title="No assessments yet" description="This patient has not completed an assessment." />
@@ -99,13 +118,13 @@ export default function ClinicalPatientProfile() {
       )}
 
       {previous.length > 0 && (
-        <section id="previous-assessments" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
+        <FadeInUp as="section" id="previous-assessments" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
           <div className={clinicalStyles.panelHeader}>
             <h2 className={clinicalStyles.panelTitle}>Previous assessments</h2>
           </div>
-          <div className={styles.previousList}>
+          <Stagger className={styles.previousList}>
             {previous.map(({ assessment }) => (
-              <div
+              <Stagger.Item
                 key={assessment.id}
                 className={styles.previousRow}
                 role="button"
@@ -119,16 +138,35 @@ export default function ClinicalPatientProfile() {
                   <span>{assessment.task.name}</span>
                 </div>
                 <Status tone={assessment.screening.needsClinicianReview ? "attention" : "positive"}>
-                  {assessment.screening.needsClinicianReview ? "Review recommended" : "Reviewed"}
+                  {assessment.screening.needsClinicianReview ? "Review recommended" : "Within range"}
                 </Status>
-              </div>
+              </Stagger.Item>
             ))}
-          </div>
-        </section>
+          </Stagger>
+        </FadeInUp>
       )}
 
+      <FadeInUp as="section" id="safety-alerts" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
+        <div className={clinicalStyles.panelHeader}>
+          <div>
+            <h2 className={clinicalStyles.panelTitle}>Home safety alerts</h2>
+            <p className={clinicalStyles.panelSubtitle}>
+              Falls, unattended appliances and wandering for {patient.name}, from home safety monitoring.
+            </p>
+          </div>
+          <Button as={Link} to={`/clinical/safety?patient=${encodeURIComponent(patient.id)}`} variant="secondary" size="sm">
+            Open in safety monitor <ArrowRight size={15} aria-hidden="true" />
+          </Button>
+        </div>
+        {safetyAlerts === null && <Skeleton height="80px" radius="md" />}
+        {safetyAlerts && safetyAlerts.length === 0 && (
+          <EmptyState icon={ShieldAlert} title="No safety alerts" description="Nothing has been raised for this patient." />
+        )}
+        {safetyAlerts && safetyAlerts.length > 0 && <SafetyAlertList alerts={safetyAlerts} />}
+      </FadeInUp>
+
       <div className={clinicalStyles.sectionSpacer}>
-        <ExportPanel />
+        <ExportPanel fileName={`memora-patient-${patient.id}.pdf`} />
       </div>
     </div>
   );

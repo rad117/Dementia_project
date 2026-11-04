@@ -11,9 +11,6 @@ export default function Footer() {
         </div>
         <nav className={styles.links} aria-label="Footer">
           <a href="#how-it-works">How it works</a>
-          <a href="#assessment-approach">Assessment</a>
-          <a href="#clinical-review">Clinical review</a>
-          <a href="#privacy">Privacy</a>
           <Link to="/role">Sign in</Link>
         </nav>
       </div>

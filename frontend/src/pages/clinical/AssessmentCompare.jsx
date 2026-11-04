@@ -3,13 +3,21 @@ import { useNavigate, useParams } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, Dot } from "recharts";
 import { ChevronLeft } from "lucide-react";
 import { getAssessment, getPatient, getPatientAssessments, getAssessmentResults } from "../../services/index.js";
+import { useTheme } from "../../app/ThemeContext.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Button from "../../components/common/Button.jsx";
 import IconButton from "../../components/common/IconButton.jsx";
-import clinicalStyles from "../../components/clinical/clinical.module.css";
+import FadeInUp from "../../components/motion/FadeInUp.jsx";
+import Bezel from "../../components/common/Bezel.jsx";
 import styles from "./AssessmentCompare.module.css";
+import { formatValue } from "../../utils/formatValue.js";
+
+const CHART_COLORS = {
+  light: { grid: "#D9D9D4", tick: "#686B72", line: "#2f55c8" },
+  dark: { grid: "#4c4a50", tick: "#9c9a95", line: "#7091ff" },
+};
 
 const METRICS = [
   { key: "speechRate", label: "Speech rate", unit: "WPM", get: (f) => f.speech.speechRateWpm },
@@ -25,7 +33,7 @@ function CustomTooltip({ active, payload, label, unit }) {
   return (
     <div className={styles.tooltip}>
       <div>{label}</div>
-      <div>{payload[0].value} {unit}</div>
+      <div>{formatValue(payload[0].value)} {unit}</div>
     </div>
   );
 }
@@ -33,6 +41,8 @@ function CustomTooltip({ active, payload, label, unit }) {
 export default function ClinicalAssessmentCompare() {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const chartColors = CHART_COLORS[theme];
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -92,13 +102,13 @@ export default function ClinicalAssessmentCompare() {
 
   return (
     <div>
-      <div className={styles.header} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <FadeInUp className={styles.header} style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <IconButton icon={ChevronLeft} label="Back to patient" variant="outline" onClick={() => navigate(`/clinical/patients/${patient.id}`)} />
         <div>
           <p style={{ fontSize: 12, color: "var(--muted)", fontWeight: 700, textTransform: "uppercase" }}>{patient.name} · {patient.id}</p>
           <h1 style={{ fontSize: 24 }}>Longitudinal analysis</h1>
         </div>
-      </div>
+      </FadeInUp>
 
       {history.length < 2 ? (
         <EmptyState
@@ -122,19 +132,19 @@ export default function ClinicalAssessmentCompare() {
             ))}
           </div>
 
-          <div className={`${clinicalStyles.panel} ${styles.chartPanel}`}>
+          <Bezel innerClassName={styles.chartPanel} className="fade-in-up">
             <ResponsiveContainer width="100%" height={320}>
               <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#D9D9D4" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#686B72" }} />
-                <YAxis tick={{ fontSize: 12, fill: "#686B72" }} width={40} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: chartColors.tick, fontVariantNumeric: "tabular-nums" }} />
+                <YAxis tick={{ fontSize: 12, fill: chartColors.tick, fontVariantNumeric: "tabular-nums" }} width={40} />
                 <RTooltip content={<CustomTooltip unit={metric.unit} />} />
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="#3157D5"
+                  stroke={chartColors.line}
                   strokeWidth={2.5}
-                  dot={(props) => <Dot {...props} r={4} fill="#3157D5" />}
+                  dot={(props) => <Dot {...props} r={4} fill={chartColors.line} />}
                   activeDot={{ r: 6 }}
                   isAnimationActive={false}
                 />
@@ -144,14 +154,14 @@ export default function ClinicalAssessmentCompare() {
             <div className={styles.pointsRow}>
               <div className={styles.pointStat}>
                 <p className={styles.pointLabel}>Previous</p>
-                <p className={styles.pointValue}>{chartData[chartData.length - 2]?.value} {metric.unit}</p>
+                <p className={styles.pointValue}>{formatValue(chartData[chartData.length - 2]?.value)} {metric.unit}</p>
               </div>
               <div className={styles.pointStat}>
                 <p className={styles.pointLabel}>Current</p>
-                <p className={styles.pointValue}>{chartData[chartData.length - 1]?.value} {metric.unit}</p>
+                <p className={styles.pointValue}>{formatValue(chartData[chartData.length - 1]?.value)} {metric.unit}</p>
               </div>
             </div>
-          </div>
+          </Bezel>
         </>
       )}
     </div>

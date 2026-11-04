@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import clinicalStyles from "./clinical.module.css";
 import styles from "./ChangeSummary.module.css";
+import { formatValue } from "../../utils/formatValue.js";
 
 const DIRECTION_ICON = { increased: TrendingUp, decreased: TrendingDown, steady: Minus };
 
@@ -24,7 +25,7 @@ export default function ChangeSummary({ whatChanged }) {
                     {item.label} {item.direction === "steady" ? "stayed steady" : `${item.direction} by ${item.percent}%`}
                     {" "}
                     <span className={styles.values}>
-                      ({item.previousValue} → {item.currentValue}{item.unit ? ` ${item.unit}` : ""})
+                      ({formatValue(item.previousValue)} → {formatValue(item.currentValue)}{item.unit ? ` ${item.unit}` : ""})
                     </span>
                   </span>
                 </li>

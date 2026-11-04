@@ -19,10 +19,22 @@ cp .env.example .env.local
 # then edit .env.local if the backend isn't on http://127.0.0.1:8000
 ```
 
-This only makes the **patient screening flow** real (Language → Task → Recording → Processing → Complete) — the backend implements `POST /assessments`, `POST /assessments/{id}/audio`, `GET /assessments/{id}/results`. The clinician dashboard/login pages (`Dashboard`, `Patients`, `PatientProfile`, `AssessmentDetail`, `AssessmentCompare`, `PatientLogin`) call endpoints (`/patients`, `/auth/*`, etc.) the backend doesn't implement yet — those still need `VITE_USE_MOCK_API` unset/mock, or will fail once flipped to the real backend, until that separate ticket lands.
+Every flow the frontend uses is implemented on the real backend: the patient
+screening flow (`POST /assessments`, `POST /assessments/{id}/audio`,
+`GET /assessments/{id}/results`), the clinician dashboard/login pages
+(`GET /patients`, `GET /assessments`, `/auth/*`), and logout. Setting
+`VITE_USE_MOCK_API=false` with a valid `VITE_API_BASE_URL` runs the whole app
+— patient and clinician sides — against the real backend. See
+`backend/README.md` for how to run or deploy it.
+
+**Careful with `VITE_USE_MOCK_API`**: `src/services/index.js` treats any
+value other than the literal string `"false"` as "use mock" — including an
+unset variable. A deployed build (e.g. on Vercel) with this env var missing
+or misspelled will silently serve mock data instead of erroring.
 
 ## Other scripts
 
 - `npm run build` — production build
 - `npm run lint` — oxlint
+- `npm run test` — Vitest + React Testing Library (clinician login, assessment-submission processing)
 - `npm run preview` — preview a production build locally

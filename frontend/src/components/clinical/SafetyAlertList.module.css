@@ -1,0 +1,15 @@
+.alertList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.alert{border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:14px 16px;background:var(--white)}
+.CRITICAL{border-left-color:var(--red);background:var(--red-soft)}
+.HIGH{border-left-color:var(--amber);background:var(--amber-soft)}
+.MEDIUM{border-left-color:var(--cobalt);background:var(--cobalt-soft)}
+.LOW{border-left-color:var(--green);background:var(--green-soft)}
+.alertTop{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.level{font-size:11px;font-weight:850;letter-spacing:.08em}
+.demoTag{font-size:11px;font-weight:700;border:1px solid var(--line-strong);border-radius:6px;padding:1px 7px;color:var(--slate);background:var(--white)}
+.patient{font-size:13px;font-weight:700;color:var(--cobalt-deep);text-decoration:none}
+.patient:hover{text-decoration:underline}
+.time{margin-left:auto;font-size:12px;color:var(--muted)}
+.summary{font-size:16px;font-weight:700;margin-bottom:6px}
+.meta{font-size:13px;color:var(--slate);line-height:1.5;margin-top:3px}
+@media(max-width:600px){.time{margin-left:0;width:100%}}

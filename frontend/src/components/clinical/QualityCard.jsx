@@ -31,7 +31,7 @@ export default function QualityCard({ quality }) {
         </div>
         <div>
           <p className={styles.label}>Recording duration</p>
-          <p className={styles.value}>{quality.durationSeconds}s</p>
+          <p className={styles.value}>{Math.round(quality.durationSeconds)}s</p>
         </div>
         <div>
           <p className={styles.label}>Task completion</p>

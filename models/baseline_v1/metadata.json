@@ -1,0 +1,10 @@
+{
+  "selected_model": "logreg",
+  "model_version": "baseline-logreg-v1",
+  "trained_at": "2026-09-20T15:50:37.134678+00:00",
+  "sklearn_version": "1.9.1",
+  "n_train": 131,
+  "n_test": 33,
+  "review_threshold": 0.47547711681936744,
+  "review_threshold_method": "youden_index_on_holdout_test_split"
+}

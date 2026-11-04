@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Menu, Search, Bell, LogOut } from "lucide-react";
+import { Menu, Search, Bell, LogOut, Moon, Sun } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "../../app/SessionContext.jsx";
+import { useTheme } from "../../app/ThemeContext.jsx";
 import IconButton from "../common/IconButton.jsx";
 import styles from "./ClinicalTopbar.module.css";
 
@@ -9,6 +10,7 @@ export default function ClinicalTopbar({ onMenuClick, reviewCount = 0 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const { clinicalUser, logoutClinical } = useSession();
+  const { theme, toggleTheme } = useTheme();
 
   function onSearchSubmit(e) {
     e.preventDefault();
@@ -48,6 +50,13 @@ export default function ClinicalTopbar({ onMenuClick, reviewCount = 0 }) {
           </span>
           <span className={styles.profileName}>{clinicalUser?.name ?? "Clinical Professional"}</span>
         </div>
+        <IconButton
+          icon={theme === "dark" ? Sun : Moon}
+          label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          variant="outline"
+          onClick={toggleTheme}
+          className={styles.themeToggle}
+        />
         <IconButton
           icon={LogOut}
           label="Log out"

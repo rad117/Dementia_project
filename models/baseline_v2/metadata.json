@@ -1,0 +1,10 @@
+{
+  "selected_model": "rf",
+  "model_version": "baseline-rf-v2-fused",
+  "trained_at": "2026-09-20T15:50:44.219030+00:00",
+  "sklearn_version": "1.9.1",
+  "n_train": 131,
+  "n_test": 33,
+  "review_threshold": 0.58,
+  "review_threshold_method": "youden_index_on_holdout_test_split"
+}

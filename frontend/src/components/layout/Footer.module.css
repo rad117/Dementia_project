@@ -1,7 +1,10 @@
+/* Deliberately a fixed dark band regardless of page theme -- uses
+   --footer-bg/--footer-text (constant, not theme-reactive) rather than
+   --ink/--paper, which invert under [data-theme="dark"]. */
 .footer {
   border-top: 1px solid var(--line);
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--footer-bg);
+  color: var(--footer-text);
   padding-top: var(--space-8);
 }
 

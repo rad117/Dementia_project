@@ -16,5 +16,12 @@ export const {
   getAssessmentResults,
   getAllAssessments,
   verifyParticipantCode,
+  verifyParticipantAssisted,
   loginClinicalUser,
+  logout,
+  getMonitoringStatus,
+  getMonitoringAlerts,
+  getMonitoringScenarios,
+  runMonitoringDemo,
+  clearMonitoringDemo,
 } = api;

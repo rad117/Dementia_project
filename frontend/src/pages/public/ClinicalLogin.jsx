@@ -90,7 +90,7 @@ export default function ClinicalLogin() {
         </button>
       </div>
       <p className={styles.hint} style={{ marginTop: "var(--space-4)", textAlign: "center" }}>
-        Demo mode — any credentials will grant access.
+        Use the demo clinician account above, or your own clinical credentials.
       </p>
     </div>
   );

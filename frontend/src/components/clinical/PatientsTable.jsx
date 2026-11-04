@@ -6,7 +6,7 @@ export default function PatientsTable({ patients }) {
   const navigate = useNavigate();
 
   return (
-    <div className={styles.wrap}>
+    <div className={`${styles.wrap} fade-in-up`}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -38,7 +38,7 @@ export default function PatientsTable({ patients }) {
               <td>
                 {patient.latestAssessment ? (
                   <Status tone={patient.latestAssessment.screening.needsClinicianReview ? "attention" : "positive"}>
-                    {patient.latestAssessment.screening.needsClinicianReview ? "Review recommended" : "Reviewed"}
+                    {patient.latestAssessment.screening.needsClinicianReview ? "Review recommended" : "Within range"}
                   </Status>
                 ) : (
                   <Status tone="neutral">No assessments</Status>

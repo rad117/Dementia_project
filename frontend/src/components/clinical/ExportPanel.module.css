@@ -3,3 +3,19 @@
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+
+.spinner {
+  animation: export-panel-spin 0.8s linear infinite;
+}
+
+@keyframes export-panel-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

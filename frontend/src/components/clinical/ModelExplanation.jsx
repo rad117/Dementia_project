@@ -6,7 +6,7 @@ export default function ModelExplanation({ explanation }) {
   return (
     <div className={clinicalStyles.panel}>
       <div className={clinicalStyles.panelHeader}>
-        <h2 className={clinicalStyles.panelTitle}>Why was this assessment flagged?</h2>
+        <h2 className={clinicalStyles.panelTitle}>What drove this screening estimate?</h2>
         {explanation.isDemoExplanation && <Badge tone="demo">Demo explanation</Badge>}
       </div>
       <ul className={styles.list}>

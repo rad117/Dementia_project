@@ -31,6 +31,7 @@ const ClinicalPatients = lazy(() => import("../pages/clinical/Patients.jsx"));
 const ClinicalPatientProfile = lazy(() => import("../pages/clinical/PatientProfile.jsx"));
 const ClinicalAssessmentDetail = lazy(() => import("../pages/clinical/AssessmentDetail.jsx"));
 const ClinicalAssessmentCompare = lazy(() => import("../pages/clinical/AssessmentCompare.jsx"));
+const ClinicalSafetyMonitor = lazy(() => import("../pages/clinical/SafetyMonitor.jsx"));
 const ClinicalSettings = lazy(() => import("../pages/clinical/Settings.jsx"));
 const ClinicalModelInfo = lazy(() => import("../pages/clinical/ModelInfo.jsx"));
 const ClinicalPrivacy = lazy(() => import("../pages/clinical/Privacy.jsx"));
@@ -108,6 +109,14 @@ export default function AppRoutes() {
             element={
               <Suspense fallback={<ClinicalRouteFallback />}>
                 <ClinicalAssessmentCompare />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/clinical/safety"
+            element={
+              <Suspense fallback={<ClinicalRouteFallback />}>
+                <ClinicalSafetyMonitor />
               </Suspense>
             }
           />

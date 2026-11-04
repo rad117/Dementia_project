@@ -1,5 +1,5 @@
-import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, TrendingUp, Settings, Info, ShieldCheck, X } from "lucide-react";
+import { Link, NavLink } from "react-router-dom";
+import { LayoutDashboard, Users, ClipboardList, TrendingUp, ShieldAlert, Settings, Info, ShieldCheck, X } from "lucide-react";
 import styles from "./ClinicalSidebar.module.css";
 
 const SECTIONS = [
@@ -18,6 +18,10 @@ const SECTIONS = [
   {
     label: "Insights",
     items: [{ to: "/clinical#insights", label: "Longitudinal analysis", icon: TrendingUp, isAnchor: true }],
+  },
+  {
+    label: "Safety",
+    items: [{ to: "/clinical/safety", label: "Safety monitor", icon: ShieldAlert }],
   },
   {
     label: "System",
@@ -50,10 +54,10 @@ export default function ClinicalSidebar({ open, onClose }) {
                 {section.items.map((item) =>
                   item.isAnchor ? (
                     <li key={item.to}>
-                      <a href={item.to} className={styles.link} onClick={onClose}>
+                      <Link to={item.to} className={styles.link} onClick={onClose}>
                         <item.icon size={17} aria-hidden="true" />
                         <span>{item.label}</span>
-                      </a>
+                      </Link>
                     </li>
                   ) : (
                     <li key={item.to}>

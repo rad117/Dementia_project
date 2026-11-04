@@ -1,6 +1,7 @@
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import Sparkline from "../charts/Sparkline.jsx";
 import styles from "./KeyIndicatorCard.module.css";
+import { formatValue } from "../../utils/formatValue.js";
 
 const DIRECTION_ICON = { increased: TrendingUp, decreased: TrendingDown, steady: Minus };
 
@@ -10,7 +11,7 @@ export default function KeyIndicatorCard({ label, value, unit, percent, directio
     <div className={styles.card}>
       <p className={styles.label}>{label}</p>
       <p className={styles.value}>
-        {value}
+        {formatValue(value)}
         {unit && <span className={styles.unit}>{unit}</span>}
       </p>
       {direction && (

@@ -96,6 +96,11 @@ def compute_what_changed(current_features: dict, previous_features: dict | None)
     return items
 
 
+def _num(value: float) -> str:
+    """Raw feature floats (e.g. 235.62711174009996) shown to 2 decimals at most."""
+    return f"{round(value, 2):g}"
+
+
 def generate_ai_summary(
     *,
     assessment: dict,
@@ -127,20 +132,20 @@ def generate_ai_summary(
 
     speech = features["speech"]
     speech_patterns = [
-        f"Speech rate measured at {speech['speech_rate_wpm']:g} WPM with a pause ratio of "
-        f"{speech['pause_ratio_percent']:g}%.",
-        f"Mean pause duration {speech['mean_pause_sec']:g}s; longest pause {speech['longest_pause_sec']:g}s.",
-        f"Response latency measured at {speech['response_latency_sec']:g}s.",
+        f"Speech rate measured at {_num(speech['speech_rate_wpm'])} WPM with a pause ratio of "
+        f"{_num(speech['pause_ratio_percent'])}%.",
+        f"Mean pause duration {_num(speech['mean_pause_sec'])}s; longest pause {_num(speech['longest_pause_sec'])}s.",
+        f"Response latency measured at {_num(speech['response_latency_sec'])}s.",
     ]
 
     linguistic = features["linguistic"]
     semantic = features["semantic"]
     language_patterns = [
-        f"Vocabulary diversity {linguistic['vocabulary_diversity']:g} across "
-        f"{linguistic['total_words']:g} total words ({linguistic['unique_words']:g} unique).",
-        f"{linguistic['fillers']:g} filler instances and {linguistic['repetitions']:g} repetitions observed.",
-        f"Concept coverage: {semantic['concepts_identified']:g} of "
-        f"{semantic['concepts_expected']:g} expected task concepts identified.",
+        f"Vocabulary diversity {_num(linguistic['vocabulary_diversity'])} across "
+        f"{_num(linguistic['total_words'])} total words ({_num(linguistic['unique_words'])} unique).",
+        f"{_num(linguistic['fillers'])} filler instances and {_num(linguistic['repetitions'])} repetitions observed.",
+        f"Concept coverage: {_num(semantic['concepts_identified'])} of "
+        f"{_num(semantic['concepts_expected'])} expected task concepts identified.",
     ]
 
     assessment_quality = [
