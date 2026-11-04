@@ -279,3 +279,35 @@ def test_list_assessments_requires_clinician(participant_headers, clinician_head
 
     as_clinician = client.get("/assessments", headers=clinician_headers)
     assert as_clinician.status_code == 200
+
+
+def test_patient_detail_includes_latest_assessment_and_count(clinician_headers, participant_headers):
+    first = _create_assessment(participant_headers).json()["id"]
+    _upload_audio(first, participant_headers)
+    second = _create_assessment(participant_headers).json()["id"]
+    _upload_audio(second, participant_headers)
+
+    body = client.get("/patients/CA-1001", headers=clinician_headers).json()
+
+    assert body["assessmentCount"] == 2
+    assert body["latestAssessment"]["id"] == second
+
+
+def test_patient_detail_without_assessments_has_no_latest(clinician_headers):
+    body = client.get("/patients/CA-1002", headers=clinician_headers).json()
+
+    assert body["assessmentCount"] == 0
+    assert body["latestAssessment"] is None
+
+
+def test_patient_assessments_are_listed_oldest_first(clinician_headers, participant_headers):
+    # The clinician pages read the last item as the latest assessment.
+    ids = []
+    for _ in range(3):
+        assessment_id = _create_assessment(participant_headers).json()["id"]
+        _upload_audio(assessment_id, participant_headers)
+        ids.append(assessment_id)
+
+    listed = client.get("/patients/CA-1001/assessments", headers=clinician_headers).json()
+
+    assert [a["id"] for a in listed] == ids

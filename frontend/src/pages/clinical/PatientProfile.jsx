@@ -123,7 +123,7 @@ export default function ClinicalPatientProfile() {
                   <span>{assessment.task.name}</span>
                 </div>
                 <Status tone={assessment.screening.needsClinicianReview ? "attention" : "positive"}>
-                  {assessment.screening.needsClinicianReview ? "Review recommended" : "Reviewed"}
+                  {assessment.screening.needsClinicianReview ? "Review recommended" : "Within range"}
                 </Status>
               </Stagger.Item>
             ))}

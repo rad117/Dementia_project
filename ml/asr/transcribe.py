@@ -15,14 +15,17 @@ multilingual checkpoint (e.g. "small") at the call site -- no interface
 change.
 """
 
-import io
 import os
 from pathlib import Path
 from threading import Lock
 
 from faster_whisper import WhisperModel
 
+from ml.features.acoustic import AudioProcessingError, load_audio
+
 DEFAULT_WHISPER_MODEL = "small.en"
+# Whisper models expect 16 kHz mono input.
+_WHISPER_SAMPLE_RATE = 16000
 
 _model_cache: dict[str, WhisperModel] = {}
 _cache_lock = Lock()
@@ -71,12 +74,14 @@ def transcribe(audio: str | Path | bytes, *, language: str = "en", model_size: s
     checkpoint without a code change -- see backend/README.md's deploy notes.
     """
     model_size = model_size or os.environ.get("WHISPER_MODEL", DEFAULT_WHISPER_MODEL)
-    if isinstance(audio, (str, Path)):
-        source = str(audio)
-    elif isinstance(audio, bytes):
-        source = io.BytesIO(audio)
-    else:
-        raise TranscriptionError(f"Unsupported audio input type: {type(audio)!r}")
+    # Decode with the acoustic layer's loader and hand Whisper a waveform:
+    # faster-whisper's built-in decoder calls av.open(metadata_errors=...),
+    # which PyAV >= 19 no longer accepts, so passing it a path or bytes breaks
+    # every real transcription on a fresh install.
+    try:
+        source, _sr = load_audio(audio, sample_rate=_WHISPER_SAMPLE_RATE)
+    except AudioProcessingError as exc:
+        raise TranscriptionError(str(exc)) from exc
 
     try:
         model = _get_model(model_size)

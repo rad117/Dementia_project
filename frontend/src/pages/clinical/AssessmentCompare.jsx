@@ -12,6 +12,7 @@ import IconButton from "../../components/common/IconButton.jsx";
 import FadeInUp from "../../components/motion/FadeInUp.jsx";
 import Bezel from "../../components/common/Bezel.jsx";
 import styles from "./AssessmentCompare.module.css";
+import { formatValue } from "../../utils/formatValue.js";
 
 const CHART_COLORS = {
   light: { grid: "#D9D9D4", tick: "#686B72", line: "#2f55c8" },
@@ -32,7 +33,7 @@ function CustomTooltip({ active, payload, label, unit }) {
   return (
     <div className={styles.tooltip}>
       <div>{label}</div>
-      <div>{payload[0].value} {unit}</div>
+      <div>{formatValue(payload[0].value)} {unit}</div>
     </div>
   );
 }
@@ -153,11 +154,11 @@ export default function ClinicalAssessmentCompare() {
             <div className={styles.pointsRow}>
               <div className={styles.pointStat}>
                 <p className={styles.pointLabel}>Previous</p>
-                <p className={styles.pointValue}>{chartData[chartData.length - 2]?.value} {metric.unit}</p>
+                <p className={styles.pointValue}>{formatValue(chartData[chartData.length - 2]?.value)} {metric.unit}</p>
               </div>
               <div className={styles.pointStat}>
                 <p className={styles.pointLabel}>Current</p>
-                <p className={styles.pointValue}>{chartData[chartData.length - 1]?.value} {metric.unit}</p>
+                <p className={styles.pointValue}>{formatValue(chartData[chartData.length - 1]?.value)} {metric.unit}</p>
               </div>
             </div>
           </Bezel>

@@ -5,8 +5,7 @@ from backend.schemas.results import AssessmentInfo, _CamelModel
 
 class PatientResponse(_CamelModel):
     """Minimal shape -- used for the unauthenticated participant-facing
-    roster (PatientLogin.jsx's "Assisted start" picker) and GET
-    /patients/{id}. Optional fields default to None rather than being
+    roster (PatientLogin.jsx's "Assisted start" picker). Optional fields default to None rather than being
     required, since the "assisted start" caller never needs them."""
 
     id: str
@@ -17,7 +16,7 @@ class PatientResponse(_CamelModel):
 
 class PatientListItem(_CamelModel):
     """Full shape -- the authenticated clinician-facing GET /patients
-    response (Patients.jsx's roster table)."""
+    response (Patients.jsx's roster table) and GET /patients/{id}."""
 
     id: str
     name: str

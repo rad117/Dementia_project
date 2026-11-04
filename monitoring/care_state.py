@@ -31,6 +31,13 @@ CRITICAL, HIGH, MEDIUM, LOW = "CRITICAL", "HIGH", "MEDIUM", "LOW"
 HEAT_SOURCES = {"burner", "stove", "oven", "toaster", "kettle", "microwave"}
 
 
+def _duration(secs):
+    """'45 s' under a minute, else whole minutes ('0 min' read as a bug
+    with the short demo thresholds)."""
+    secs = int(secs)
+    return f"{secs} s" if secs < 60 else f"{secs // 60} min"
+
+
 @dataclass
 class RiskEvent:
     level: str
@@ -259,11 +266,10 @@ class CareState:
         for name, since in self.heat_on_since.items():
             secs = (now - since).total_seconds()
             if secs >= self.unattended_heat_s:
-                mins = int(secs // 60)
                 out.append(RiskEvent(
                     HIGH, f"unattended_heat_{name}",
-                    f"The {name} has been on and unattended for {mins} min.",
-                    f"{name} state=on since {since:%H:%M:%S}; no person in view.",
+                    f"The {name} has been on and unattended for {_duration(secs)}.",
+                    f"{name} state=on for {_duration(secs)}; no person in view.",
                     f"Attend now and turn the {name} off.",
                 ))
 
@@ -272,8 +278,8 @@ class CareState:
             if secs >= self.unattended_water_s:
                 out.append(RiskEvent(
                     MEDIUM, "unattended_water",
-                    f"Tap running unattended for {int(secs // 60)} min.",
-                    f"water_running=True since {self.water_on_since:%H:%M:%S}",
+                    f"Tap running unattended for {_duration(secs)}.",
+                    f"water_running=True for {_duration(secs)}",
                     "Check for overflow and turn the tap off.",
                 ))
 
@@ -287,8 +293,8 @@ class CareState:
             return []
         return [RiskEvent(
             MEDIUM, "prolonged_absence",
-            f"Not seen in the monitored area for {int(secs // 60)} min.",
-            f"last seen {self.person_last_seen:%H:%M:%S}",
+            f"Not seen in the monitored area for {_duration(secs)}.",
+            f"last seen {_duration(secs)} ago",
             "Check where they are. Confirm they have not left the home.",
         )]
 
@@ -312,7 +318,7 @@ class CareState:
                 out.append(RiskEvent(
                     MEDIUM, f"repetition_{activity[:24]}",
                     f"Has repeated '{activity}' {n} times in "
-                    f"{self.repetition_window_s // 60} min without finishing.",
+                    f"{_duration(self.repetition_window_s)} without finishing.",
                     f"activity log: {recent[-8:]}",
                     "Check in gently. Offer to help complete the task, or "
                     "redirect to something else.",

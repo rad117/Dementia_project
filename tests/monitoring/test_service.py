@@ -124,3 +124,15 @@ def test_add_frame_rejects_garbage_bytes(monkeypatch):
     )
     with pytest.raises(ValueError):
         get_service().add_frame(b"not an image")
+
+
+def test_demo_alert_text_has_no_zero_minutes_or_fake_clock():
+    # Demo thresholds are seconds long and rules run on a fixed 14:00 clock;
+    # neither should leak into what the dashboard shows.
+    alerts = get_service().run_demo()
+    text = " ".join(a["summary"] + " " + a["evidence"] for a in alerts)
+
+    assert "0 min" not in text
+    assert "14:00" not in text
+    absence = next(a for a in alerts if a["kind"] == "prolonged_absence")
+    assert absence["evidence"].endswith(" s ago")

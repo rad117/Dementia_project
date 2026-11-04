@@ -1,6 +1,7 @@
 import clinicalStyles from "./clinical.module.css";
 import styles from "./FeatureSection.module.css";
 import Tooltip from "../common/Tooltip.jsx";
+import { formatValue } from "../../utils/formatValue.js";
 
 export default function FeatureSection({ title, items, footnote, children, bare = false }) {
   const content = (
@@ -17,7 +18,7 @@ export default function FeatureSection({ title, items, footnote, children, bare 
               {item.tooltip ? <Tooltip label={item.tooltip}>{item.label}</Tooltip> : item.label}
             </dt>
             <dd className={styles.value}>
-              {item.value}
+              {formatValue(item.value)}
               {item.unit ? <span className={styles.unit}> {item.unit}</span> : null}
             </dd>
           </div>

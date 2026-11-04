@@ -59,6 +59,10 @@ a Render Web Service from the root-level `Dockerfile`.
    e.g. `https://your-app.vercel.app`.
 4. Health check path is `/health` (`backend/routes/assessments.py`) — Render
    uses this to know when the service is ready.
+5. `render.yaml` does not pin a branch, so a Blueprint deploys the repo's
+   default branch. Make sure the service's branch (Settings -> Build &
+   Deploy) is the one that holds this code; an older `main` has no
+   `Dockerfile` or `monitoring/` package.
 
 **Free-tier tradeoff**: `render.yaml` deliberately has no persistent disk (a
 paid-plan feature). `DB_PATH`/`HF_HOME` fall back to the code defaults, which

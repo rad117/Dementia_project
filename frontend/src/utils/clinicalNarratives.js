@@ -67,7 +67,7 @@ export function computeWhatChanged(currentFeatures, previousFeatures) {
 }
 
 export function generateAiSummary({ assessment, features, previousFeatures, whatChanged, quality }) {
-  const overview = `Assessment ${assessment.id} recorded a ${assessment.task.name.toLowerCase()} task in ${assessment.language}, lasting ${quality.durationSeconds} seconds. Screening estimate: ${(assessment.screening.estimate * 100).toFixed(0)}/100 (illustrative).`;
+  const overview = `Assessment ${assessment.id} recorded a ${assessment.task.name.toLowerCase()} task in ${assessment.language}, lasting ${Math.round(quality.durationSeconds)} seconds. Screening estimate: ${(assessment.screening.estimate * 100).toFixed(0)}/100 (illustrative).`;
 
   const observedChanges =
     whatChanged && whatChanged.some((c) => c.direction !== "steady")
