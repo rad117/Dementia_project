@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(title="Memora API", lifespan=lifespan)
 
 allow_origins = [
     origin.strip()
@@ -44,3 +44,15 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(auth_router)
 app.include_router(monitoring_router)
+
+
+@app.get("/", include_in_schema=False)
+def root() -> dict:
+    """Landing response for anyone opening the API's base URL in a browser."""
+    return {
+        "service": "Memora API",
+        "status": "ok",
+        "description": "Speech-based cognitive screening and home safety monitoring.",
+        "health": "/health",
+        "docs": "/docs",
+    }

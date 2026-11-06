@@ -6,6 +6,14 @@ AI-assisted, multilingual cognitive screening and memory-assistance platform. Pa
 
 **Two halves, one platform:** speech-based cognitive screening (below) and camera-based **safety monitoring** (falls, appliances left on, wandering), both reviewed from the same clinician dashboard. See [Safety monitoring](#safety-monitoring).
 
+## Live demo
+
+- **App:** https://memora-health.vercel.app (clinician demo login: `dr.sharma@memora.org` / `demo1234`)
+- **API:** https://memora-backend-a8yh.onrender.com ([docs](https://memora-backend-a8yh.onrender.com/docs))
+
+The API runs on Render's free tier and sleeps when idle: open it about a minute before a demo.
+Sessions live in memory only (privacy by design), so a full page refresh signs you out; navigate with the sidebar.
+
 ## How it works
 
 ```
