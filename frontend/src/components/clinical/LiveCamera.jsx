@@ -22,12 +22,16 @@ export default function LiveCamera({ patientId, available }) {
   const sendTimer = useRef(null);
   const inFlight = useRef(false);
   const patientRef = useRef(patientId);
+  // Bumped by every stop. Camera startup and frame encoding finish later, so each
+  // checks it is still in the same session before doing anything with the result.
+  const sessionRef = useRef(0);
   const [phase, setPhase] = useState("idle"); // idle | starting | running
   const [error, setError] = useState(null);
   const [observation, setObservation] = useState(null);
   const [counters, setCounters] = useState(null);
 
   const stop = useCallback(() => {
+    sessionRef.current += 1;
     clearInterval(sendTimer.current);
     sendTimer.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -57,25 +61,31 @@ export default function LiveCamera({ patientId, available }) {
     canvas.height = Math.round(video.videoHeight * scale);
     canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
     inFlight.current = true;
+    // Fixed now, at capture: this frame belongs to this patient whatever happens next.
+    const session = sessionRef.current;
+    const framePatient = patientRef.current;
+    const stale = () => session !== sessionRef.current;
     canvas.toBlob(
       (blob) => {
+        if (stale()) return;
         if (!blob) {
           inFlight.current = false;
           return;
         }
-        submitMonitoringFrame(blob, patientRef.current || undefined)
+        submitMonitoringFrame(blob, framePatient || undefined)
           .then((result) => {
-            if (result?.status === "unavailable") {
+            if (!stale() && result?.status === "unavailable") {
               setError(`Camera analysis isn't available on this server (missing: ${(result.missing ?? []).join(", ") || "unknown"}).`);
               stop();
             }
           })
           .catch((err) => {
+            if (stale()) return;
             setError(err.message ?? "Couldn't send a frame to the server.");
             stop();
           })
           .finally(() => {
-            inFlight.current = false;
+            if (!stale()) inFlight.current = false;
           });
       },
       "image/jpeg",
@@ -92,18 +102,27 @@ export default function LiveCamera({ patientId, available }) {
       return;
     }
     setPhase("starting");
+    const session = sessionRef.current;
+    const stale = () => session !== sessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
         audio: false,
       });
+      if (stale()) {
+        // The patient changed while the permission prompt was open: release the camera.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       const video = videoRef.current;
       video.srcObject = stream;
       await video.play();
+      if (stale()) return;
       sendTimer.current = setInterval(sendFrame, FRAME_INTERVAL_MS);
       setPhase("running");
     } catch (err) {
+      if (stale()) return;
       stop();
       setError(
         err?.name === "NotAllowedError"
