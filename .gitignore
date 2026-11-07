@@ -25,3 +25,6 @@ backend/*.db
 *.jsonl
 *.pt
 monitoring/**/*.db
+
+# Downloaded pose model (scripts/download_pose_model.sh)
+monitoring/models/

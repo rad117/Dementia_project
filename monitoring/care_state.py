@@ -348,7 +348,7 @@ class CareState:
             return []
 
         out = []
-        if obs.get("motion") == "active" and obs.get("posture") == "standing":
+        if obs.get("motion") == "active" and obs.get("posture") in ("standing", "upright"):
             out.append(RiskEvent(
                 MEDIUM, "night_activity",
                 f"Up and moving about at {now:%H:%M}.",

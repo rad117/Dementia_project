@@ -8,9 +8,18 @@ never depends on this module being usable.
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from backend import db
-from backend.schemas.monitoring import AlertOut, MonitoringStatus, ObservationIn, ScenarioOut
+from backend.schemas.monitoring import (
+    AlertOut,
+    ContactIn,
+    ContactOut,
+    MonitoringStatus,
+    NotificationOut,
+    ObservationIn,
+    ScenarioOut,
+)
 from backend.services.auth import require_clinician
 from monitoring import store
+from monitoring.notify import get_notifier, valid_phone
 from monitoring.service import DEFAULT_SCENARIO, MAX_FRAME_BYTES, SCENARIOS, get_service, list_scenarios
 
 # Camera observations describe a real person in a real room: every endpoint
@@ -82,3 +91,47 @@ def run_demo(patient_id: str | None = None, scenario: str = DEFAULT_SCENARIO) ->
 @router.delete("/demo")
 def clear_demo() -> dict:
     return {"deleted": store.clear_source("demo")}
+
+
+# ---------------------------------------------------------------------------
+# Family alerts by SMS / WhatsApp (Twilio). See monitoring/notify.py.
+
+@router.get("/notifications/status")
+def notifications_status() -> dict:
+    return get_notifier().status()
+
+
+@router.get("/notifications", response_model=list[NotificationOut])
+def notification_log(limit: int = 50) -> list[dict]:
+    return store.list_notifications(limit=min(max(limit, 1), 200))
+
+
+@router.get("/contacts", response_model=list[ContactOut])
+def list_contacts(patient_id: str | None = None) -> list[dict]:
+    return store.list_contacts(patient_id)
+
+
+@router.post("/contacts", response_model=ContactOut, status_code=201)
+def add_contact(payload: ContactIn) -> dict:
+    if db.get_patient_row(payload.patient_id) is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if not valid_phone(payload.phone):
+        raise HTTPException(status_code=422,
+                            detail="Phone must be in international format, e.g. +919876543210")
+    return store.add_contact(payload.patient_id, payload.name, payload.phone, payload.channel)
+
+
+@router.delete("/contacts/{contact_id}")
+def delete_contact(contact_id: int) -> dict:
+    if not store.delete_contact(contact_id):
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return {"deleted": contact_id}
+
+
+@router.post("/contacts/{contact_id}/test")
+def test_contact(contact_id: int) -> dict:
+    """Send one clearly-labelled test message to this contact."""
+    contact = store.get_contact(contact_id)
+    if contact is None:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return get_notifier().send_test(contact)

@@ -1,6 +1,8 @@
 fastapi>=0.141.1
 uvicorn[standard]>=0.52.4
 python-multipart>=0.0.32
+# Family alerts: monitoring/notify.py calls the Twilio API at runtime.
+httpx>=0.28.1
 
 # The /assessments/{id}/audio endpoint calls ml.inference.predict() in-process.
 -r ../ml/requirements.txt

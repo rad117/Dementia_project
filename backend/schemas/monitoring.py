@@ -58,6 +58,8 @@ class ScenarioOut(BaseModel):
 class LiveCameraStatus(BaseModel):
     available: bool
     missing: list[str]
+    pose: bool = False
+    vlm: bool = False
     observer: str
     observer_error: str | None = None
     last_error: str | None = None
@@ -67,3 +69,29 @@ class MonitoringStatus(BaseModel):
     live_camera: LiveCameraStatus
     counters: dict
     state: dict
+
+
+class ContactIn(BaseModel):
+    patient_id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=100)
+    phone: str = Field(description="International format, e.g. +919876543210")
+    channel: Literal["sms", "whatsapp"] = "sms"
+
+
+class ContactOut(BaseModel):
+    id: int
+    patient_id: str
+    name: str
+    phone: str
+    channel: str
+
+
+class NotificationOut(BaseModel):
+    id: int
+    at: str
+    patient_id: str | None = None
+    contact_id: int | None = None
+    channel: str
+    alert_kind: str | None = None
+    status: str
+    detail: str | None = None
