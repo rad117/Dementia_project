@@ -148,6 +148,38 @@ export async function clearMonitoringDemo() {
   return request("/monitoring/demo", { method: "DELETE" });
 }
 
+// ---- Live camera (browser webcam -> backend pose/vision pipeline) ---------
+export async function submitMonitoringFrame(blob, patientId) {
+  const body = new FormData();
+  body.append("frame", blob, "frame.jpg");
+  const query = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : "";
+  return request(`/monitoring/frame${query}`, { method: "POST", body });
+}
+
+export async function getLastObservation() {
+  return request("/monitoring/observation");
+}
+
+// ---- Family alert contacts (SMS / WhatsApp via Twilio) --------------------
+export async function getGuardianContacts(patientId) {
+  return request(`/monitoring/contacts?patient_id=${encodeURIComponent(patientId)}`);
+}
+
+export async function addGuardianContact({ patientId, name, phone, channel }) {
+  return request("/monitoring/contacts", {
+    method: "POST",
+    body: JSON.stringify({ patient_id: patientId, name, phone, channel }),
+  });
+}
+
+export async function deleteGuardianContact(contactId) {
+  return request(`/monitoring/contacts/${contactId}`, { method: "DELETE" });
+}
+
+export async function sendGuardianTest(contactId) {
+  return request(`/monitoring/contacts/${contactId}/test`, { method: "POST" });
+}
+
 export const api = {
   getPatients,
   getPatient,
@@ -166,6 +198,12 @@ export const api = {
   getMonitoringScenarios,
   runMonitoringDemo,
   clearMonitoringDemo,
+  submitMonitoringFrame,
+  getLastObservation,
+  getGuardianContacts,
+  addGuardianContact,
+  deleteGuardianContact,
+  sendGuardianTest,
 };
 
 export { ApiError };

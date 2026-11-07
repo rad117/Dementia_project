@@ -322,6 +322,47 @@ export async function clearMonitoringDemo() {
   return { deleted };
 }
 
+// ---- Live camera (the mock has no analysis pipeline) ----------------------
+export async function submitMonitoringFrame() {
+  await delay(DELAY_MS.short);
+  return { status: "unavailable", missing: ["backend"] };
+}
+
+export async function getLastObservation() {
+  await delay(DELAY_MS.short);
+  return {};
+}
+
+// ---- Family alert contacts (mirrors backend /monitoring/contacts) ---------
+let mockContacts = [];
+let nextContactId = 1;
+
+export async function getGuardianContacts(patientId) {
+  await delay(DELAY_MS.short);
+  return mockContacts.filter((c) => c.patient_id === patientId);
+}
+
+export async function addGuardianContact({ patientId, name, phone, channel = "sms" }) {
+  await delay(DELAY_MS.short);
+  if (!/^\+[1-9]\d{7,14}$/.test(phone || "")) {
+    throw new ApiError("Phone must be in international format, e.g. +919876543210", "VALIDATION");
+  }
+  const contact = { id: nextContactId++, patient_id: patientId, name, phone, channel };
+  mockContacts = [...mockContacts, contact];
+  return contact;
+}
+
+export async function deleteGuardianContact(contactId) {
+  await delay(DELAY_MS.short);
+  mockContacts = mockContacts.filter((c) => c.id !== contactId);
+  return { deleted: contactId };
+}
+
+export async function sendGuardianTest() {
+  await delay(DELAY_MS.short);
+  return { status: "dry_run" };
+}
+
 export const mockApi = {
   getPatients,
   getPatient,
@@ -340,6 +381,12 @@ export const mockApi = {
   getMonitoringScenarios,
   runMonitoringDemo,
   clearMonitoringDemo,
+  submitMonitoringFrame,
+  getLastObservation,
+  getGuardianContacts,
+  addGuardianContact,
+  deleteGuardianContact,
+  sendGuardianTest,
 };
 
 export { ApiError };
