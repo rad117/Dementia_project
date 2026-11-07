@@ -96,7 +96,7 @@ Trained on the ADReSSo 2021 dataset (English, Cookie Theft task, N=164, binary d
 
 A room camera feeds a vision model and a temporal rules engine (`monitoring/`) that raises caregiver alerts for falls, a stove or tap left on, prolonged absence, night-time wandering and repeated unfinished tasks. Alerts appear on the clinician dashboard under **Safety monitor** (`/clinical/safety`) and are stored in the same SQLite database as assessments. It monitors hazards and behaviour only; it does not diagnose and does not classify faces or expressions.
 
-- **No camera or GPU needed to try it:** open Safety monitor and press *Run demo scenario* (an unattended stove followed by a fall).
+- **No camera or GPU needed to try it:** open Safety monitor, pick a patient and run one of five incident scenarios (stove left on then a fall, bathroom fall, night-time wandering, tap left running, repeated unfinished task). Each replays the vision model's structured observations through the real rules engine; alerts then show on the clinical overview and the patient's profile.
 - **Live camera is optional:** `pip install -r monitoring/requirements.txt` plus a GPU. Without it, `POST /monitoring/frame` answers `{"status":"unavailable"}` and everything else keeps working.
 - Full details, endpoints and configuration: [`monitoring/README.md`](monitoring/README.md).
 
