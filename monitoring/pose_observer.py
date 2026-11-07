@@ -44,6 +44,10 @@ def _mid(lm, a, b):
     return ((lm[a][0] + lm[b][0]) / 2, (lm[a][1] + lm[b][1]) / 2)
 
 
+def pose_model_path() -> Path:
+    return Path(os.environ.get("MONITORING_POSE_MODEL") or DEFAULT_MODEL_PATH)
+
+
 def analyse_pose(lm) -> dict | None:
     """One frame's 33 landmarks [(x, y, visibility), ...] -> metrics, or None if unusable."""
     if not lm or len(lm) < 33:
@@ -104,7 +108,7 @@ def observation_from_poses(poses: list) -> dict:
     last = valid[-1]
     obs["person_present"] = True
     obs["posture"] = last["posture"]
-    obs["on_floor"] = last["posture"] == "lying"
+    obs["_hip_y"] = last["hip_y"]
 
     steps = list(zip(valid, valid[1:]))
     if steps:
@@ -130,6 +134,11 @@ def observation_from_poses(poses: list) -> dict:
             and tallest > 0 and last["height"] / tallest <= SHRINK_RATIO
             and last["posture"] in ("lying", "bent_over")
         )
+    # A pose cannot tell a bed from the floor, so lying alone is not "on the
+    # floor". Only a fall or sharp drop seen in this clip makes it so; the tiered
+    # observer carries that across clips and also catches drops between clips.
+    obs["on_floor"] = last["posture"] == "lying" and bool(
+        obs["fall_in_progress"] or obs["sudden_descent"])
     return obs
 
 
@@ -137,7 +146,7 @@ class PoseObserver:
     """MediaPipe pose landmarker; turns a clip of RGB frames into an observation."""
 
     def __init__(self, model_path: str | os.PathLike | None = None):
-        path = Path(model_path or os.environ.get("MONITORING_POSE_MODEL") or DEFAULT_MODEL_PATH)
+        path = Path(model_path) if model_path else pose_model_path()
         if not path.exists():
             raise FileNotFoundError(
                 f"pose model not found at {path}; run scripts/download_pose_model.sh")

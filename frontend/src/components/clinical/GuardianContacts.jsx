@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addGuardianContact, deleteGuardianContact, getGuardianContacts, sendGuardianTest } from "../../services/index.js";
 import Button from "../common/Button.jsx";
 import styles from "./GuardianContacts.module.css";
@@ -12,9 +12,15 @@ export default function GuardianContacts({ patientId }) {
   const [form, setForm] = useState({ name: "", phone: "", channel: "sms" });
   const [note, setNote] = useState(null);
   const [busy, setBusy] = useState(false);
+  const currentPatient = useRef(patientId);
 
   useEffect(() => {
     let cancelled = false;
+    currentPatient.current = patientId;
+    // Never leave the previous patient's contacts on screen, where they could
+    // be tested or removed from the new patient's profile.
+    setContacts(null);
+    setNote(null);
     getGuardianContacts(patientId)
       .then((c) => !cancelled && setContacts(c))
       .catch((e) => !cancelled && (setContacts([]), setNote({ error: true, text: e.message })));
@@ -31,7 +37,7 @@ export default function GuardianContacts({ patientId }) {
     setNote(null);
     try {
       const created = await addGuardianContact({ patientId, ...form, name: form.name.trim(), phone: form.phone.trim() });
-      setContacts((c) => [...(c ?? []), created]);
+      if (currentPatient.current === patientId) setContacts((c) => [...(c ?? []), created]);
       setForm({ name: "", phone: "", channel: form.channel });
     } catch (err) {
       setNote({ error: true, text: err.message });

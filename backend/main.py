@@ -10,6 +10,7 @@ from backend.routes.auth import router as auth_router
 from ml.inference.predict import preload as preload_model
 from backend.routes.monitoring import router as monitoring_router
 from monitoring import store as monitoring_store
+from monitoring.notify import resume_pending as resume_pending_notifications
 
 # Local dev defaults (Vite's default port, both hostname forms). Set
 # BACKEND_CORS_ORIGINS (comma-separated) to the real deployed frontend
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
     seed.run()
     preload_model()
     monitoring_store.init_db()
+    resume_pending_notifications()
     yield
 
 

@@ -29,6 +29,10 @@ from datetime import datetime, timedelta
 CRITICAL, HIGH, MEDIUM, LOW = "CRITICAL", "HIGH", "MEDIUM", "LOW"
 
 HEAT_SOURCES = {"burner", "stove", "oven", "toaster", "kettle", "microwave"}
+# How long after a witnessed fall losing sight of the person is an emergency.
+FALL_FOLLOWUP_S = 120
+# A brief pose-tracking dropout should not restart the "lying for a long time" timer.
+LYING_DROPOUT_S = 120
 
 
 def _duration(secs):
@@ -75,6 +79,7 @@ class CareState:
             unattended_water_s=20,
             absence_concern_s=25,
             floor_alert_s=6,
+            rest_check_s=30,
             repetition_window_s=60,
             repetition_count=3,
             cooldown_s=30,
@@ -91,6 +96,7 @@ class CareState:
         repetition_window_s: int = 480,
         repetition_count: int = 4,
         cooldown_s: int = 300,               # don't repeat the same alert
+        rest_check_s: int = 1800,            # lying, not known to be on the floor, in the day
     ):
         self.unattended_heat_s = unattended_heat_s
         self.unattended_water_s = unattended_water_s
@@ -101,12 +107,15 @@ class CareState:
         self.repetition_window_s = repetition_window_s
         self.repetition_count = repetition_count
         self.cooldown_s = cooldown_s
+        self.rest_check_s = rest_check_s
 
         # persistent state
         self.heat_on_since = {}          # appliance -> datetime
         self.water_on_since = None
         self.person_last_seen = None
         self.floor_since = None
+        self.lying_since = None
+        self.lying_last_seen = None
         self.fall_witnessed_at = None
         self.door_open_since = None
 
@@ -135,6 +144,7 @@ class CareState:
         events += self._check_absence(now)
         events += self._check_repetition(now)
         events += self._check_night(obs, person, now)
+        events += self._check_long_rest(obs, now)
 
         events = [e for e in events if self._not_muted(e, now)]
         for e in events:
@@ -170,10 +180,20 @@ class CareState:
             self.door_open_since = None
 
     def _track_floor(self, obs, person, now):
-        if person and (obs.get("on_floor") or obs.get("posture") == "lying"):
+        # Lying down is not the same as being on the floor: people rest on beds
+        # and couches. Only an explicit on_floor starts the fall timer. Lying
+        # that cannot be placed gets the gentler check in _check_long_rest.
+        if person and obs.get("on_floor"):
             self.floor_since = self.floor_since or now
         else:
             self.floor_since = None
+
+        if person and obs.get("posture") == "lying" and not obs.get("on_floor"):
+            self.lying_since = self.lying_since or now
+            self.lying_last_seen = now
+        elif person or (self.lying_last_seen and
+                        (now - self.lying_last_seen).total_seconds() > LYING_DROPOUT_S):
+            self.lying_since = self.lying_last_seen = None
 
     def _track_activity(self, obs, person, now):
         activity = (obs.get("activity") or "none").strip().lower()
@@ -205,7 +225,7 @@ class CareState:
 
         # Fell, then disappeared from view. Worse than staying visible, not better.
         if not person and self.fall_witnessed_at and \
-                (now - self.fall_witnessed_at).total_seconds() < 120:
+                (now - self.fall_witnessed_at).total_seconds() < FALL_FOLLOWUP_S:
             out.append(RiskEvent(
                 CRITICAL, "fall_then_lost",
                 "A fall was seen and the person is no longer visible.",
@@ -365,6 +385,25 @@ class CareState:
             ))
 
         return out
+
+    def _check_long_rest(self, obs, now):
+        """Daytime lying for a long time. Sleeping at night is normal, so not then.
+
+        This is the safety net for a fall nobody saw: without the vision model
+        the camera cannot tell a bed from the floor.
+        """
+        hour = now.hour
+        if hour >= self.night_start_hour or hour < self.night_end_hour or not self.lying_since:
+            return []
+        secs = (now - self.lying_since).total_seconds()
+        if secs < self.rest_check_s:
+            return []
+        return [RiskEvent(
+            MEDIUM, "long_lying",
+            f"Lying down for {_duration(secs)}.",
+            f"posture=lying for {_duration(secs)}, on_floor not confirmed",
+            "Check in. The camera cannot always tell a bed or couch from the floor.",
+        )]
 
     # ------------------------------------------------------------------
 

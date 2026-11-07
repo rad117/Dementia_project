@@ -156,8 +156,9 @@ export async function submitMonitoringFrame(blob, patientId) {
   return request(`/monitoring/frame${query}`, { method: "POST", body });
 }
 
-export async function getLastObservation() {
-  return request("/monitoring/observation");
+export async function getLastObservation(patientId) {
+  const query = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : "";
+  return request(`/monitoring/observation${query}`);
 }
 
 // ---- Family alert contacts (SMS / WhatsApp via Twilio) --------------------

@@ -95,3 +95,31 @@ def test_service_skips_model_while_scene_is_still(monkeypatch):
     time.sleep(0.3)
     # Only the very first look; the still scene afterwards never wakes the model.
     assert len(calls) == 1
+
+
+def test_small_distant_movement_passes():
+    gate = MotionGate()
+    gate.update(_frame(100, size=(640, 480)))
+    moved = _frame(100, size=(640, 480))
+    moved[100:160, 300:360] = 200    # a small area, far below the whole-frame average
+    assert gate.update(moved) is True
+    assert gate.last_score < gate.threshold
+
+
+def test_slow_movement_adds_up_against_the_last_passed_frame():
+    gate = MotionGate()
+    gate.update(_frame(100))
+    assert gate.update(_frame(102)) is False
+    assert gate.update(_frame(103)) is False
+    assert gate.update(_frame(105)) is True          # no single step reached the threshold
+
+
+def test_default_heartbeat_is_short():
+    assert MotionGate().heartbeat_s == 60
+
+
+def test_frames_smaller_than_the_grid_do_not_crash():
+    gate = MotionGate()
+    assert gate.update(np.zeros((6, 8, 3), np.uint8)) is True
+    assert gate.update(np.zeros((6, 8, 3), np.uint8)) is False
+    assert gate.update(np.zeros((1, 1), np.uint8)) is False

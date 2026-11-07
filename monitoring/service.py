@@ -27,13 +27,15 @@ import threading
 import time
 from collections import deque
 from datetime import datetime, timedelta
+from functools import lru_cache
 
 from monitoring import store
-from monitoring.care_state import CareState
+from monitoring.care_state import FALL_FOLLOWUP_S, CareState
 from monitoring.motion_gate import MotionGate
-from monitoring.nurse_observer import EMPTY_OBSERVATION
+from monitoring.nurse_observer import EMPTY_OBSERVATION, pick_device
+from monitoring.pose_observer import pose_model_path
+from monitoring.settings import env_float
 
-LIVE_CAMERA_DEPS = ("numpy", "PIL", "torch", "transformers")
 MAX_FRAME_BYTES = 10 * 1024 * 1024
 MAX_FRAME_WIDTH = 640
 OBSERVER_RETRY_S = 300
@@ -44,19 +46,43 @@ def _has(module: str) -> bool:
 
 
 def live_camera_support() -> dict:
-    """Which optional packages the live camera path needs, and which are missing.
+    """What the live camera path can use right now, and what is missing.
 
-    Either stack is enough: the light one (numpy, Pillow, mediapipe) gives pose-based
-    fall detection on a plain CPU; the heavy one (torch, transformers) is the vision
-    model. With both, the tiered observer uses pose first and the model on demand.
+    Either stack is enough: the light one (numpy, Pillow, mediapipe plus its model
+    file) gives pose-based fall detection on a plain CPU; the heavy one (torch,
+    transformers) is the vision model. With both, the tiered observer uses pose
+    first and the model on demand. "missing" names what the light stack still needs.
     """
     base = [m for m in ("numpy", "PIL") if not _has(m)]
-    if _has("mediapipe") or (_has("torch") and _has("transformers")):
-        return {"available": not base, "missing": base,
-                "pose": _has("mediapipe"), "vlm": _has("torch") and _has("transformers")}
-    return {"available": False, "missing": base + [m for m in LIVE_CAMERA_DEPS
-                                                    if m not in ("numpy", "PIL") and not _has(m)],
-            "pose": False, "vlm": False}
+    has_pose_package = _has("mediapipe")
+    pose = has_pose_package and pose_model_path().exists()
+    vlm = _has("torch") and _has("transformers") and _vlm_enabled()
+    if pose or vlm:
+        return {"available": not base, "missing": base, "pose": pose, "vlm": vlm}
+    needed = "pose model (run scripts/download_pose_model.sh)" if has_pose_package else "mediapipe"
+    return {"available": False, "missing": base + [needed], "pose": False, "vlm": False}
+
+
+@lru_cache(maxsize=1)
+def _has_accelerator() -> bool:
+    try:
+        return pick_device() != "cpu"
+    except Exception:
+        return False
+
+
+def _vlm_enabled() -> bool:
+    """MONITORING_VLM: 0 = never, 1 = always, unset = only when a GPU is available.
+
+    A 7B model on a CPU takes minutes per clip and many GB of memory, so a plain
+    install must not load it by accident.
+    """
+    setting = os.environ.get("MONITORING_VLM", "").strip().lower()
+    if setting in ("0", "false", "off"):
+        return False
+    if setting in ("1", "true", "on"):
+        return True
+    return _has_accelerator()
 
 
 def build_default_observer():
@@ -64,16 +90,18 @@ def build_default_observer():
     from monitoring.nurse_observer import NurseObserver
 
     support = live_camera_support()
-    use_vlm = support["vlm"] and os.environ.get("MONITORING_VLM", "1") != "0"
     if support["pose"]:
         from monitoring.pose_observer import PoseObserver
         from monitoring.tiered_observer import TieredObserver
         return TieredObserver(
             PoseObserver(),
-            vlm_factory=NurseObserver if use_vlm else None,
-            vlm_interval_s=float(os.environ.get("MONITORING_VLM_INTERVAL_S", "600")),
+            vlm_factory=NurseObserver if support["vlm"] else None,
+            vlm_interval_s=env_float("MONITORING_VLM_INTERVAL_S", 600.0),
+            vlm_active_interval_s=env_float("MONITORING_VLM_ACTIVE_INTERVAL_S", 120.0),
         )
-    return NurseObserver()
+    if support["vlm"]:
+        return NurseObserver()
+    raise RuntimeError(f"camera analysis unavailable, missing: {support['missing']}")
 
 
 # A short scripted incident: someone cooks, walks away from a lit stove, then
@@ -208,7 +236,9 @@ class MonitoringService:
         with self._state_lock:
             events = self._state.update(obs, now=now)
             st = self._state
-            self._watch = bool(st.floor_since or st.heat_on_since
+            fall_followup = st.fall_witnessed_at and \
+                (now - st.fall_witnessed_at).total_seconds() < FALL_FOLLOWUP_S
+            self._watch = bool(st.floor_since or st.heat_on_since or fall_followup
                                or st.water_on_since or st.door_open_since)
         alerts = []
         for e in events:
@@ -292,6 +322,11 @@ class MonitoringService:
             if observer is None:
                 return
             obs = observer.observe(clip, fps=self.fps)
+            if obs.get("_parse_failed"):
+                # Defaults are not a reading; ingesting them would reset hazard timers.
+                self.clips_analysed += 1
+                self.last_error = "Vision model reply could not be read; keeping the last reading."
+                return
             self.ingest_observation(obs, patient_id=patient_id)
             self.clips_analysed += 1
             self.last_error = None
@@ -370,8 +405,7 @@ def get_service() -> MonitoringService:
             demo = os.environ.get("MONITORING_DEMO") == "1"
             gate = None
             if os.environ.get("MONITORING_MOTION_GATE", "1") != "0":
-                gate = MotionGate(
-                    heartbeat_s=float(os.environ.get("MONITORING_HEARTBEAT_S", "300")))
+                gate = MotionGate(heartbeat_s=env_float("MONITORING_HEARTBEAT_S", 60.0))
             _service = MonitoringService(
                 care_state=CareState.demo() if demo else None, motion_gate=gate)
         return _service

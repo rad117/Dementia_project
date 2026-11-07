@@ -22,16 +22,16 @@ export default function LiveCamera({ patientId, available }) {
   const sendTimer = useRef(null);
   const inFlight = useRef(false);
   const patientRef = useRef(patientId);
+  // Bumped by every stop. Camera startup and frame encoding finish later, so each
+  // checks it is still in the same session before doing anything with the result.
+  const sessionRef = useRef(0);
   const [phase, setPhase] = useState("idle"); // idle | starting | running
   const [error, setError] = useState(null);
   const [observation, setObservation] = useState(null);
   const [counters, setCounters] = useState(null);
 
-  useEffect(() => {
-    patientRef.current = patientId;
-  }, [patientId]);
-
   const stop = useCallback(() => {
+    sessionRef.current += 1;
     clearInterval(sendTimer.current);
     sendTimer.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -43,6 +43,15 @@ export default function LiveCamera({ patientId, available }) {
 
   useEffect(() => stop, [stop]);
 
+  // Monitoring belongs to one patient: changing patient stops the camera, so one
+  // person's readings and alerts can never be filed under another.
+  useEffect(() => {
+    patientRef.current = patientId;
+    stop();
+    setObservation(null);
+    setCounters(null);
+  }, [patientId, stop]);
+
   const sendFrame = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -52,25 +61,31 @@ export default function LiveCamera({ patientId, available }) {
     canvas.height = Math.round(video.videoHeight * scale);
     canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
     inFlight.current = true;
+    // Fixed now, at capture: this frame belongs to this patient whatever happens next.
+    const session = sessionRef.current;
+    const framePatient = patientRef.current;
+    const stale = () => session !== sessionRef.current;
     canvas.toBlob(
       (blob) => {
+        if (stale()) return;
         if (!blob) {
           inFlight.current = false;
           return;
         }
-        submitMonitoringFrame(blob, patientRef.current || undefined)
+        submitMonitoringFrame(blob, framePatient || undefined)
           .then((result) => {
-            if (result?.status === "unavailable") {
+            if (!stale() && result?.status === "unavailable") {
               setError(`Camera analysis isn't available on this server (missing: ${(result.missing ?? []).join(", ") || "unknown"}).`);
               stop();
             }
           })
           .catch((err) => {
+            if (stale()) return;
             setError(err.message ?? "Couldn't send a frame to the server.");
             stop();
           })
           .finally(() => {
-            inFlight.current = false;
+            if (!stale()) inFlight.current = false;
           });
       },
       "image/jpeg",
@@ -81,23 +96,33 @@ export default function LiveCamera({ patientId, available }) {
   async function start() {
     setError(null);
     setObservation(null);
+    if (!patientId) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("This browser can't access a camera here. Use Chrome or Safari on https or localhost.");
       return;
     }
     setPhase("starting");
+    const session = sessionRef.current;
+    const stale = () => session !== sessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
         audio: false,
       });
+      if (stale()) {
+        // The patient changed while the permission prompt was open: release the camera.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       const video = videoRef.current;
       video.srcObject = stream;
       await video.play();
+      if (stale()) return;
       sendTimer.current = setInterval(sendFrame, FRAME_INTERVAL_MS);
       setPhase("running");
     } catch (err) {
+      if (stale()) return;
       stop();
       setError(
         err?.name === "NotAllowedError"
@@ -114,7 +139,7 @@ export default function LiveCamera({ patientId, available }) {
     let cancelled = false;
     async function poll() {
       try {
-        const [obs, status] = await Promise.all([getLastObservation(), getMonitoringStatus()]);
+        const [obs, status] = await Promise.all([getLastObservation(patientId), getMonitoringStatus()]);
         if (cancelled) return;
         setObservation(obs?.observation ? obs : null);
         setCounters(status.counters);
@@ -128,7 +153,7 @@ export default function LiveCamera({ patientId, available }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [phase]);
+  }, [phase, patientId]);
 
   const o = observation?.observation;
   const tiers = counters?.tiers;
@@ -150,7 +175,7 @@ export default function LiveCamera({ patientId, available }) {
       <div className={styles.side}>
         <div className={styles.controls}>
           {!running ? (
-            <Button variant="accent" size="sm" onClick={start} disabled={phase === "starting" || available === false}>
+            <Button variant="accent" size="sm" onClick={start} disabled={phase === "starting" || available === false || !patientId}>
               <Camera size={15} aria-hidden="true" /> Start camera
             </Button>
           ) : (
@@ -162,6 +187,9 @@ export default function LiveCamera({ patientId, available }) {
 
         {available === false && (
           <p className={styles.note}>Camera analysis isn&apos;t installed on this server, so the camera can&apos;t be used here.</p>
+        )}
+        {available !== false && !patientId && (
+          <p className={styles.note}>Select a patient above first. Alerts and family texts are sent for that patient.</p>
         )}
         {error && <p className={styles.err} role="alert">{error}</p>}
 

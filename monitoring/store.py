@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS notification_log (
     status TEXT NOT NULL,
     detail TEXT
 );
+CREATE TABLE IF NOT EXISTS notification_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created REAL NOT NULL,
+    next_try REAL NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    patient_id TEXT,
+    contact_id INTEGER NOT NULL,
+    alert_kind TEXT,
+    body TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS monitoring_observations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     at TEXT NOT NULL,
@@ -137,13 +147,16 @@ def list_alerts(
         return [dict(r) for r in conn.execute(query, params).fetchall()]
 
 
-def last_observation(db_path: Path | None = None) -> dict | None:
+def last_observation(patient_id: str | None = None, db_path: Path | None = None) -> dict | None:
+    """The newest observation, or the newest for one patient when one is given."""
+    query = "SELECT at, patient_id, source, data FROM monitoring_observations"
+    params: list = []
+    if patient_id:
+        query += " WHERE patient_id = ?"
+        params.append(patient_id)
     with sqlite3.connect(_path(db_path)) as conn:
         conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT at, patient_id, source, data FROM monitoring_observations "
-            "ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        row = conn.execute(query + " ORDER BY id DESC LIMIT 1", params).fetchone()
     if row is None:
         return None
     return {
@@ -205,6 +218,7 @@ def get_contact(contact_id: int, db_path: Path | None = None) -> dict | None:
 
 def delete_contact(contact_id: int, db_path: Path | None = None) -> bool:
     with sqlite3.connect(_path(db_path)) as conn:
+        conn.execute("DELETE FROM notification_queue WHERE contact_id = ?", (contact_id,))
         return conn.execute("DELETE FROM guardian_contacts WHERE id = ?", (contact_id,)).rowcount > 0
 
 
@@ -224,3 +238,46 @@ def list_notifications(limit: int = 50, db_path: Path | None = None) -> list[dic
         conn.row_factory = sqlite3.Row
         return [dict(r) for r in conn.execute(
             "SELECT * FROM notification_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()]
+
+
+# ---------------------------------------------------------------------------
+# notification queue: messages not yet delivered, so a restart cannot lose them.
+# Times are Unix seconds, since they have to mean the same thing after a restart.
+
+def enqueue_notification(*, patient_id: str | None, contact_id: int, alert_kind: str | None,
+                         body: str, created: float, db_path: Path | None = None) -> None:
+    with sqlite3.connect(_path(db_path)) as conn:
+        conn.execute(
+            "INSERT INTO notification_queue (created, next_try, patient_id, contact_id, alert_kind, body) "
+            "VALUES (?, ?, ?, ?, ?, ?)", (created, created, patient_id, contact_id, alert_kind, body))
+
+
+def is_notification_queued(contact_id: int, alert_kind: str | None, db_path: Path | None = None) -> bool:
+    with sqlite3.connect(_path(db_path)) as conn:
+        return conn.execute(
+            "SELECT 1 FROM notification_queue WHERE contact_id = ? AND alert_kind IS ? LIMIT 1",
+            (contact_id, alert_kind)).fetchone() is not None
+
+
+def due_notifications(now: float, db_path: Path | None = None) -> list[dict]:
+    with sqlite3.connect(_path(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM notification_queue WHERE next_try <= ? ORDER BY id", (now,)).fetchall()]
+
+
+def next_queued_time(db_path: Path | None = None) -> float | None:
+    with sqlite3.connect(_path(db_path)) as conn:
+        return conn.execute("SELECT MIN(next_try) FROM notification_queue").fetchone()[0]
+
+
+def reschedule_notification(queue_id: int, *, attempts: int, next_try: float,
+                            db_path: Path | None = None) -> None:
+    with sqlite3.connect(_path(db_path)) as conn:
+        conn.execute("UPDATE notification_queue SET attempts = ?, next_try = ? WHERE id = ?",
+                     (attempts, next_try, queue_id))
+
+
+def remove_queued_notification(queue_id: int, db_path: Path | None = None) -> None:
+    with sqlite3.connect(_path(db_path)) as conn:
+        conn.execute("DELETE FROM notification_queue WHERE id = ?", (queue_id,))
