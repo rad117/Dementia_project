@@ -67,6 +67,56 @@ alerts; `DELETE /monitoring/demo` clears all simulated alerts.
 - Recorded `observations.jsonl`, `alerts.jsonl`, `descriptions.jsonl` and `monitoring.db` were not imported (they contain observations of a real person).
 - The ~30 duplicate guides were not carried over; this README replaces them.
 
+## Tiered camera pipeline (how it stays affordable)
+
+Calling a large vision model every few seconds is ~14,400 calls per camera per
+day. Instead the live path is tiered, cheapest first:
+
+```
+frame -> motion gate -> pose model (CPU) -> vision model (GPU, only when needed)
+```
+
+| Tier | File | Runs | Job |
+|---|---|---|---|
+| Motion gate | `motion_gate.py` | every frame | Skip clips while the scene is unchanged. Stays open while someone is on the floor or a stove/tap/door is flagged (a person lying still makes no motion), plus a 5-minute heartbeat. |
+| Pose | `pose_observer.py` | every passing clip, CPU | Person present, standing/sitting/lying, fall and sudden-descent. MediaPipe; no per-call cost. |
+| Vision model | `nurse_observer.py` via `tiered_observer.py` | on odd pose, else every `MONITORING_VLM_INTERVAL_S` (600 s) | Confirms a fall, reads stove/tap/door. Optional: without it, pose-only monitoring still detects falls. |
+
+Between vision looks, pose-only observations carry the last stove/tap/door
+reading forward so `CareState` timers keep counting.
+
+Install: `pip install -r monitoring/requirements.txt` then
+`scripts/download_pose_model.sh`. The light stack (mediapipe) is enough for
+fall detection; torch/transformers are only for the vision model.
+
+**Not yet validated:** pose thresholds are tested on synthetic poses and assume
+a roughly side-on, wall-mounted camera. Real footage and the real vision model
+have not been run end to end. Sway/unsteadiness is only set by the vision model.
+
+## Family alerts by SMS / WhatsApp (Twilio)
+
+Add family contacts per patient (patient profile, "Family alerts", or
+`POST /monitoring/contacts`). When a **live** alert at or above
+`MONITORING_NOTIFY_MIN_LEVEL` (default `HIGH`) is raised, each contact is texted.
+
+- Simulated/demo alerts never send anything.
+- Without Twilio credentials nothing is sent; attempts are logged as `dry_run`.
+- Every attempt is logged (`GET /monitoring/notifications`): sent / failed / dry_run.
+- Same alert kind for the same patient is not re-sent within `MONITORING_NOTIFY_COOLDOWN_S` (600).
+- Messages carry the patient's first name, the summary and the action only. No evidence or location text, since SMS is not private.
+
+| Variable | Meaning |
+|---|---|
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Twilio credentials (environment only, never in the repo) |
+| `TWILIO_SMS_FROM` | Sending number, e.g. `+15551234567` |
+| `TWILIO_WHATSAPP_FROM` | e.g. `whatsapp:+14155238886` (sandbox) or an approved sender |
+| `MONITORING_NOTIFY_MIN_LEVEL` | `CRITICAL`, `HIGH` (default), `MEDIUM`, `LOW` |
+
+Before real use: Twilio trial accounts only reach verified numbers; WhatsApp
+needs the sandbox join or an approved sender; SMS to Indian numbers has its own
+sender/template registration rules. Check Twilio's current requirements.
+Families must consent to receiving alerts and to the camera.
+
 ## Limitations
 
 Thresholds in `CareState` are conservative defaults and must be tuned to the person's routine. No detection accuracy has been measured in this repository; treat any figure quoted in the original materials as unverified.

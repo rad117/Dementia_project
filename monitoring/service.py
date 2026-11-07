@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 
 from monitoring import store
 from monitoring.care_state import CareState
+from monitoring.motion_gate import MotionGate
 from monitoring.nurse_observer import EMPTY_OBSERVATION
 
 LIVE_CAMERA_DEPS = ("numpy", "PIL", "torch", "transformers")
@@ -38,10 +39,41 @@ MAX_FRAME_WIDTH = 640
 OBSERVER_RETRY_S = 300
 
 
+def _has(module: str) -> bool:
+    return importlib.util.find_spec(module) is not None
+
+
 def live_camera_support() -> dict:
-    """Which optional packages the live camera path needs, and which are missing."""
-    missing = [m for m in LIVE_CAMERA_DEPS if importlib.util.find_spec(m) is None]
-    return {"available": not missing, "missing": missing}
+    """Which optional packages the live camera path needs, and which are missing.
+
+    Either stack is enough: the light one (numpy, Pillow, mediapipe) gives pose-based
+    fall detection on a plain CPU; the heavy one (torch, transformers) is the vision
+    model. With both, the tiered observer uses pose first and the model on demand.
+    """
+    base = [m for m in ("numpy", "PIL") if not _has(m)]
+    if _has("mediapipe") or (_has("torch") and _has("transformers")):
+        return {"available": not base, "missing": base,
+                "pose": _has("mediapipe"), "vlm": _has("torch") and _has("transformers")}
+    return {"available": False, "missing": base + [m for m in LIVE_CAMERA_DEPS
+                                                    if m not in ("numpy", "PIL") and not _has(m)],
+            "pose": False, "vlm": False}
+
+
+def build_default_observer():
+    """Pose model first; vision model optional and loaded only when first needed."""
+    from monitoring.nurse_observer import NurseObserver
+
+    support = live_camera_support()
+    use_vlm = support["vlm"] and os.environ.get("MONITORING_VLM", "1") != "0"
+    if support["pose"]:
+        from monitoring.pose_observer import PoseObserver
+        from monitoring.tiered_observer import TieredObserver
+        return TieredObserver(
+            PoseObserver(),
+            vlm_factory=NurseObserver if use_vlm else None,
+            vlm_interval_s=float(os.environ.get("MONITORING_VLM_INTERVAL_S", "600")),
+        )
+    return NurseObserver()
 
 
 # A short scripted incident: someone cooks, walks away from a lit stove, then
@@ -137,7 +169,8 @@ def list_scenarios() -> list[dict]:
 
 class MonitoringService:
     def __init__(self, care_state: CareState | None = None, observer_factory=None,
-                 clip_len: int = 8, fps: float = 2.0, gap_s: float = 6.0):
+                 clip_len: int = 8, fps: float = 2.0, gap_s: float = 6.0,
+                 motion_gate: MotionGate | None = None):
         self._state = care_state or CareState()
         self._state_lock = threading.Lock()
         self._observer_factory = observer_factory
@@ -153,6 +186,12 @@ class MonitoringService:
         self._buffer_lock = threading.Lock()
         self._busy = False
         self._last_run = 0.0
+        # Optional tier-1 gate: skip the (expensive) model while the scene is still.
+        self._gate = motion_gate
+        self._gate_open = False
+        # True while something needs watching even if the scene is still (a person
+        # on the floor, a stove or tap left on). Keeps the gate open for those.
+        self._watch = False
 
         self.frames_received = 0
         self.clips_analysed = 0
@@ -168,12 +207,20 @@ class MonitoringService:
         obs = {**EMPTY_OBSERVATION, **{k: v for k, v in obs.items() if not k.startswith("_")}}
         with self._state_lock:
             events = self._state.update(obs, now=now)
+            st = self._state
+            self._watch = bool(st.floor_since or st.heat_on_since
+                               or st.water_on_since or st.door_open_since)
         alerts = []
         for e in events:
             e.at = now.isoformat(timespec="seconds")
             alerts.append(e.to_dict())
         store.save_observation(obs, at=now, patient_id=patient_id, source=source)
         store.save_alerts(alerts, patient_id=patient_id, source=source)
+        try:  # texting the family must never break monitoring
+            from monitoring.notify import get_notifier
+            get_notifier().dispatch(alerts, patient_id=patient_id, source=source)
+        except Exception:
+            pass
         return alerts
 
     # ------------------------------------------------------------------
@@ -200,14 +247,18 @@ class MonitoringService:
         with self._buffer_lock:
             self._buffer.append(frame)
             self.frames_received += 1
+            if self._gate is not None and (self._gate.update(frame) or self._watch):
+                self._gate_open = True
             ready = len(self._buffer) == self.clip_len
             clip = list(self._buffer) if ready else None
             start = (
                 ready and not self._busy
+                and (self._gate is None or self._gate_open)
                 and time.time() - self._last_run >= self.gap_s
             )
             if start:
                 self._busy = True
+                self._gate_open = False
 
         if start:
             threading.Thread(
@@ -224,8 +275,7 @@ class MonitoringService:
         self._observer_status = "loading"
         try:
             if self._observer_factory is None:
-                from monitoring.nurse_observer import NurseObserver
-                self._observer = NurseObserver()
+                self._observer = build_default_observer()
             else:
                 self._observer = self._observer_factory()
             self._observer_status = "ready"
@@ -254,8 +304,12 @@ class MonitoringService:
     # ------------------------------------------------------------------
 
     def _counters(self) -> dict:
-        return {"frames": self.frames_received, "clips": self.clips_analysed,
-                "observer": self._observer_status}
+        out = {"frames": self.frames_received, "clips": self.clips_analysed,
+               "observer": self._observer_status}
+        stats = getattr(self._observer, "stats", None)
+        if callable(stats):
+            out["tiers"] = stats()
+        return out
 
     def status(self) -> dict:
         support = live_camera_support()
@@ -314,7 +368,12 @@ def get_service() -> MonitoringService:
     with _service_lock:
         if _service is None:
             demo = os.environ.get("MONITORING_DEMO") == "1"
-            _service = MonitoringService(care_state=CareState.demo() if demo else None)
+            gate = None
+            if os.environ.get("MONITORING_MOTION_GATE", "1") != "0":
+                gate = MotionGate(
+                    heartbeat_s=float(os.environ.get("MONITORING_HEARTBEAT_S", "300")))
+            _service = MonitoringService(
+                care_state=CareState.demo() if demo else None, motion_gate=gate)
         return _service
 
 

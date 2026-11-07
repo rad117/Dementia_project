@@ -24,4 +24,10 @@ export const {
   getMonitoringScenarios,
   runMonitoringDemo,
   clearMonitoringDemo,
+  submitMonitoringFrame,
+  getLastObservation,
+  getGuardianContacts,
+  addGuardianContact,
+  deleteGuardianContact,
+  sendGuardianTest,
 } = api;

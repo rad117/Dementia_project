@@ -6,6 +6,7 @@ import PatientHeader from "../../components/clinical/PatientHeader.jsx";
 import AssessmentAnalysisSections from "../../components/clinical/AssessmentAnalysisSections.jsx";
 import ExportPanel from "../../components/clinical/ExportPanel.jsx";
 import SafetyAlertList from "../../components/clinical/SafetyAlertList.jsx";
+import GuardianContacts from "../../components/clinical/GuardianContacts.jsx";
 import Status from "../../components/common/Status.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorState from "../../components/common/ErrorState.jsx";
@@ -163,6 +164,18 @@ export default function ClinicalPatientProfile() {
           <EmptyState icon={ShieldAlert} title="No safety alerts" description="Nothing has been raised for this patient." />
         )}
         {safetyAlerts && safetyAlerts.length > 0 && <SafetyAlertList alerts={safetyAlerts} />}
+      </FadeInUp>
+
+      <FadeInUp as="section" id="family-alerts" className={`${clinicalStyles.panel} ${clinicalStyles.sectionSpacer}`}>
+        <div className={clinicalStyles.panelHeader}>
+          <div>
+            <h2 className={clinicalStyles.panelTitle}>Family alerts</h2>
+            <p className={clinicalStyles.panelSubtitle}>
+              Who is texted when a serious live safety alert is raised for {patient.name}. Simulated alerts never send messages.
+            </p>
+          </div>
+        </div>
+        <GuardianContacts patientId={patient.id} />
       </FadeInUp>
 
       <div className={clinicalStyles.sectionSpacer}>

@@ -15,6 +15,7 @@ import ErrorState from "../../components/common/ErrorState.jsx";
 import Skeleton from "../../components/common/Skeleton.jsx";
 import Status from "../../components/common/Status.jsx";
 import SafetyAlertList from "../../components/clinical/SafetyAlertList.jsx";
+import LiveCamera from "../../components/clinical/LiveCamera.jsx";
 import clinicalStyles from "../../components/clinical/clinical.module.css";
 import styles from "./SafetyMonitor.module.css";
 
@@ -24,7 +25,7 @@ function cameraSummary(live) {
   if (!live) return { tone: "unknown", label: "Unknown" };
   if (!live.available) return { tone: "neutral", label: "Camera analysis off on this server" };
   if (live.observer === "failed") return { tone: "attention", label: "Vision model failed to load" };
-  if (live.observer === "ready") return { tone: "positive", label: "Ready" };
+  if (live.observer === "ready") return { tone: "positive", label: live.vlm ? "Ready (pose + vision model)" : "Ready (pose detection)" };
   if (live.observer === "loading") return { tone: "neutral", label: "Loading vision model" };
   return { tone: "neutral", label: "Idle — waiting for camera frames" };
 }
@@ -219,12 +220,13 @@ export default function ClinicalSafetyMonitor() {
                 </h2>
                 <p className={clinicalStyles.panelSubtitle}>
                   {live && !live.available
-                    ? `Live camera analysis needs a GPU server with the vision packages (${live.missing.join(", ")}). This deployment runs the care rules and alerting; the simulator above feeds them the same observations a camera would.`
-                    : "Frames from the room camera are analysed in short clips and checked against the care rules."}
+                    ? `Live camera analysis needs extra packages on the server (${live.missing.join(", ")}). This deployment runs the care rules and alerting; the simulator above feeds them the same observations a camera would.`
+                    : "Uses this device's camera. Frames are analysed in short clips (pose first, vision model only when needed) and checked against the care rules for the patient selected above."}
                 </p>
               </div>
               {status ? <Status tone={camera.tone}>{camera.label}</Status> : <Skeleton width="140px" height="22px" />}
             </div>
+            <LiveCamera patientId={simPatient || undefined} available={live ? live.available : undefined} />
             {live?.observer_error && <p className={styles.errorLine}>Vision model error: {live.observer_error}</p>}
             {live?.last_error && <p className={styles.errorLine}>Last analysis error: {live.last_error}</p>}
             {state && (
