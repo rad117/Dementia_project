@@ -31,7 +31,7 @@ camera frames -> clip buffer -> NurseObserver (vision model, fixed JSON schema)
 1. **Structured observation** (no camera, no GPU): `POST /monitoring/observations`
    with the JSON schema from `nurse_observer.py`. This is what the tests use.
 2. **Camera frames**: `POST /monitoring/frame` (multipart field `frame`, a JPEG).
-   Needs `pip install -r monitoring/requirements.txt` and a GPU.
+   Needs `pip install -r monitoring/requirements.txt` and `scripts/download_pose_model.sh` (CPU). The vision model also needs `monitoring/requirements-vision.txt` and a GPU.
    If the packages are missing the endpoint answers `{"status":"unavailable"}`.
 
 ## Demo without hardware
@@ -56,6 +56,13 @@ alerts; `DELETE /monitoring/demo` clears all simulated alerts.
 | `MONITORING_DEMO=1` | Use short demo thresholds for live monitoring (never in a real home). |
 | `MONITORING_VLM_MODEL` | Vision model id (default `Qwen/Qwen2.5-VL-7B-Instruct`). |
 | `MONITORING_DEVICE` | `cuda`, `mps` or `cpu` (default: auto). |
+| `MONITORING_VLM` | `0` never use the vision model, `1` always, unset only when a GPU is found. |
+| `MONITORING_VLM_INTERVAL_S` | Vision model check in a calm scene (default 600). |
+| `MONITORING_VLM_ACTIVE_INTERVAL_S` | Vision model check while someone is moving or a hazard is flagged (default 120). |
+| `MONITORING_HEARTBEAT_S` | Analyse a still scene at least this often (default 60). |
+| `MONITORING_MOTION_GATE` | `0` turns the motion gate off. |
+
+An invalid number in a timing setting is ignored with a logged warning and the default is used.
 
 ## What changed from the original
 
@@ -78,16 +85,26 @@ frame -> motion gate -> pose model (CPU) -> vision model (GPU, only when needed)
 
 | Tier | File | Runs | Job |
 |---|---|---|---|
-| Motion gate | `motion_gate.py` | every frame | Skip clips while the scene is unchanged. Stays open while someone is on the floor or a stove/tap/door is flagged (a person lying still makes no motion), plus a 5-minute heartbeat. |
+| Motion gate | `motion_gate.py` | every frame | Skip clips while the scene is unchanged. Notices small or slow movement as well as big changes. Stays open while someone is on the floor, just after a witnessed fall, or while a stove/tap/door is flagged, plus a 60-second heartbeat. |
 | Pose | `pose_observer.py` | every passing clip, CPU | Person present, standing/sitting/lying, fall and sudden-descent. MediaPipe; no per-call cost. |
-| Vision model | `nurse_observer.py` via `tiered_observer.py` | on odd pose, else every `MONITORING_VLM_INTERVAL_S` (600 s) | Confirms a fall, reads stove/tap/door. Optional: without it, pose-only monitoring still detects falls. |
+| Vision model | `nurse_observer.py` via `tiered_observer.py` | on odd pose or when someone leaves view; every 120 s while someone moves or a hazard is flagged; else every 600 s | Confirms a fall, tells a bed from the floor, reads stove/tap/door. Optional: without it, pose-only monitoring still detects falls. |
 
 Between vision looks, pose-only observations carry the last stove/tap/door
 reading forward so `CareState` timers keep counting.
 
 Install: `pip install -r monitoring/requirements.txt` then
-`scripts/download_pose_model.sh`. The light stack (mediapipe) is enough for
-fall detection; torch/transformers are only for the vision model.
+`scripts/download_pose_model.sh`. That is enough for fall detection on a CPU.
+`monitoring/requirements-vision.txt` adds the vision model, which only runs by
+itself when a GPU is found (see `MONITORING_VLM`).
+
+**Lying down is not treated as being on the floor.** A pose cannot tell a bed from
+the floor. On-floor alerts need a fall or a sharp drop seen first, within a clip or
+between two clips, or the vision model saying so. Without the vision model, a fall
+nobody saw raises only a MEDIUM `long_lying` check after 30 minutes in the daytime.
+
+**Appliance timing:** a stove lit while someone moves about is read within about
+2 minutes, so an unattended-stove alert can arrive about 2 minutes after its 3-minute
+threshold. Without the vision model, stove, tap and door checks do not run at all.
 
 **Not yet validated:** pose thresholds are tested on synthetic poses and assume
 a roughly side-on, wall-mounted camera. Real footage and the real vision model
@@ -102,7 +119,10 @@ Add family contacts per patient (patient profile, "Family alerts", or
 - Simulated/demo alerts never send anything.
 - Without Twilio credentials nothing is sent; attempts are logged as `dry_run`.
 - Every attempt is logged (`GET /monitoring/notifications`): sent / failed / dry_run.
-- Same alert kind for the same patient is not re-sent within `MONITORING_NOTIFY_COOLDOWN_S` (600).
+- Messages are queued in the database, so a restart does not lose them. Temporary failures are retried after 30 s, 2 min and 5 min; permanent ones (bad number, bad credentials) are not.
+- A message older than `MONITORING_NOTIFY_MAX_AGE_S` (1800) is dropped and logged as `expired`.
+- The same alert kind is not re-sent to a contact within `MONITORING_NOTIFY_COOLDOWN_S` (600) of a delivery. A failed send does not start this.
+- Removing a contact cancels their queued messages.
 - Messages carry the patient's first name, the summary and the action only. No evidence or location text, since SMS is not private.
 
 | Variable | Meaning |

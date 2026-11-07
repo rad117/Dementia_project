@@ -187,7 +187,9 @@ class NurseObserver:
             obs = {**EMPTY_OBSERVATION, **_extract_json(raw)}
         except Exception as e:
             print(f"  [parse failed: {e}]")
-            obs = dict(EMPTY_OBSERVATION)
+            # Defaults here are not a reading: flagged so callers don't treat
+            # them as "person gone, tap off, door closed".
+            obs = {**EMPTY_OBSERVATION, "_parse_failed": True}
 
         obs["_latency_s"] = round(latency, 2)
         obs["_raw"] = raw

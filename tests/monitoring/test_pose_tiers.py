@@ -68,9 +68,10 @@ def test_sitting_is_not_mistaken_for_lying_or_standing():
     assert obs["posture"] == "sitting" and not obs["on_floor"]
 
 
-def test_lying_still_is_on_floor_without_a_fall_event():
+def test_lying_still_alone_is_not_on_the_floor():
+    """Could be a bed or a couch: a pose cannot tell."""
     obs = observation_from_poses([make_pose("lying", hip_y=0.85)] * 4)
-    assert obs["posture"] == "lying" and obs["on_floor"] is True
+    assert obs["posture"] == "lying" and obs["on_floor"] is False
     assert obs["fall_in_progress"] is False
     assert obs["motion"] == "still"
 
@@ -147,7 +148,7 @@ class Clock:
 
 
 def test_calm_clips_do_not_call_the_vlm_between_intervals():
-    clock, vlm = Clock(), FakeVlm()
+    clock, vlm = Clock(), FakeVlm({"person_present": True, "posture": "standing"})
     t = TieredObserver(FakePose([{}]), vlm_factory=lambda: vlm, vlm_interval_s=600, clock=clock)
     t.observe([1]); assert vlm.calls == 1           # first look reads the scene
     for step in range(1, 50):
@@ -222,3 +223,184 @@ def test_gate_stays_open_while_a_hazard_is_active(monkeypatch):
         time.sleep(0.03)
     time.sleep(0.3)
     assert len(calls) > 3              # kept analysing the still, dangerous scene
+
+
+# ------------------------------------------------- bed vs floor across clips
+
+def _pose_clip(kind, hip_y):
+    return observation_from_poses([make_pose(kind, hip_y=hip_y)] * 4)
+
+
+class ScriptedPose:
+    def __init__(self, clips):
+        self.clips, self.i = clips, 0
+
+    def observe(self, frames, fps=2.0):
+        clip = self.clips[min(self.i, len(self.clips) - 1)]
+        self.i += 1
+        return dict(clip)
+
+
+def test_lying_down_on_a_bed_raises_no_fall_alert():
+    from datetime import datetime, timedelta
+    from monitoring.care_state import CareState
+
+    clock = Clock()
+    t = TieredObserver(ScriptedPose([_pose_clip("sitting", 0.60), _pose_clip("lying", 0.62)]), clock=clock)
+    state, start, kinds = CareState(), datetime(2026, 1, 1, 14, 0), set()
+    for step in range(12):
+        clock.t = step * 6
+        obs = {k: v for k, v in t.observe([1]).items() if not k.startswith("_")}
+        kinds |= {e.kind for e in state.update(obs, now=start + timedelta(seconds=step * 6))}
+    assert not kinds & {"fall", "fall_event", "fall_motionless"}
+
+
+def test_fall_between_clips_is_caught_and_stays_on_the_floor_until_they_get_up():
+    clock = Clock()
+    t = TieredObserver(ScriptedPose([_pose_clip("standing", 0.40), _pose_clip("lying", 0.85),
+                                     _pose_clip("lying", 0.85), _pose_clip("standing", 0.40),
+                                     _pose_clip("lying", 0.42)]), clock=clock)
+    t.observe([1]); clock.t = 6
+    first = t.observe([1])
+    assert first["sudden_descent"] is True and first["on_floor"] is True
+    clock.t = 12
+    assert t.observe([1])["on_floor"] is True        # still down, no new motion
+    clock.t = 18
+    assert t.observe([1])["on_floor"] is False       # got up
+    clock.t = 60
+    assert t.observe([1])["on_floor"] is False       # later rest is not the old fall
+
+
+def test_old_upright_reading_is_not_compared_across_clips():
+    clock = Clock()
+    t = TieredObserver(ScriptedPose([_pose_clip("standing", 0.40), _pose_clip("lying", 0.85)]), clock=clock)
+    t.observe([1]); clock.t = 300
+    assert t.observe([1])["on_floor"] is False
+
+
+def test_vlm_saying_floor_overrides_and_vlm_saying_bed_stops_repeat_calls():
+    clock = Clock()
+    vlm = FakeVlm({"person_present": True, "posture": "lying", "on_floor": False, "motion": "still"})
+    t = TieredObserver(ScriptedPose([_pose_clip("lying", 0.6)]), vlm_factory=lambda: vlm,
+                       vlm_interval_s=600, odd_recheck_s=30, clock=clock)
+    t.observe([1])
+    for step in range(1, 40):                         # four minutes asleep
+        clock.t = step * 6
+        t.observe([1])
+    assert vlm.calls == 1
+
+    clock2 = Clock()
+    vlm2 = FakeVlm({"person_present": True, "posture": "lying", "on_floor": True})
+    t2 = TieredObserver(ScriptedPose([_pose_clip("lying", 0.6)]), vlm_factory=lambda: vlm2, clock=clock2)
+    t2.observe([1])
+    clock2.t = 6
+    assert t2.observe([1])["on_floor"] is True        # pose-only clip keeps the VLM's verdict
+
+
+# ------------------------------------------------------- appliance schedule
+
+def _reading(stove):
+    return {"person_present": True, "posture": "standing",
+            "appliances": [{"name": "stove", "state": stove}]}
+
+
+def test_vlm_checks_every_two_minutes_while_someone_is_moving():
+    clock, vlm = Clock(), FakeVlm({"person_present": True, "posture": "standing"})
+    t = TieredObserver(FakePose([{"motion": "active"}]), vlm_factory=lambda: vlm, clock=clock)
+    t.observe([1])
+    clock.t = 100; t.observe([1]); assert vlm.calls == 1
+    clock.t = 130; t.observe([1]); assert vlm.calls == 2
+
+
+def test_vlm_keeps_checking_a_flagged_hazard_in_a_calm_scene():
+    clock, vlm = Clock(), FakeVlm(_reading("on"))
+    t = TieredObserver(FakePose([{}]), vlm_factory=lambda: vlm, clock=clock)
+    t.observe([1])
+    clock.t = 130; t.observe([1]); assert vlm.calls == 2
+
+
+def test_vlm_looks_when_the_person_leaves_view():
+    """They may have walked away from a lit stove."""
+    clock, vlm = Clock(), FakeVlm({"person_present": False})
+    t = TieredObserver(FakePose([{}, {"person_present": False}]), vlm_factory=lambda: vlm, clock=clock)
+    t.observe([1]); assert vlm.calls == 1
+    clock.t = 40
+    t.observe([1]); assert vlm.calls == 2
+
+
+def test_unreadable_vlm_reply_keeps_the_last_hazard_reading():
+    from monitoring.nurse_observer import EMPTY_OBSERVATION
+
+    clock = Clock()
+    replies = [{"person_present": True, "posture": "standing", "water_running": True, "door_open": True},
+               {**EMPTY_OBSERVATION, "_parse_failed": True}]
+
+    class Vlm:
+        def observe(self, frames, fps=2.0):
+            return dict(replies.pop(0))
+
+    t = TieredObserver(FakePose([{}]), vlm_factory=Vlm, clock=clock)
+    t.observe([1])
+    clock.t = 130
+    obs = t.observe([1])
+    assert obs["water_running"] is True and obs["door_open"] is True
+    assert obs["person_present"] is True              # the pose reading, not the blank
+    assert "could not be read" in t.stats()["vlm_error"]
+    assert t.stats()["vlm_clips"] == 1
+
+
+# ----------------------------------------------------------------- service
+
+def _run_frames(svc, n=4):
+    for _ in range(n):
+        svc.add_frame(_jpeg(100))
+        time.sleep(0.03)
+    time.sleep(0.2)
+
+
+def test_service_ignores_an_unreadable_reply_from_a_lone_vision_model(monkeypatch):
+    from monitoring import store
+    from monitoring.nurse_observer import EMPTY_OBSERVATION
+
+    monkeypatch.setattr("monitoring.service.live_camera_support",
+                        lambda: {"available": True, "missing": []})
+
+    class Obs:
+        def observe(self, clip, fps=2.0):
+            return {**EMPTY_OBSERVATION, "_parse_failed": True}
+
+    svc = MonitoringService(observer_factory=Obs, clip_len=2, gap_s=0)
+    svc._state.update({"person_present": True, "water_running": True})
+    _run_frames(svc)
+    assert svc._state.water_on_since is not None
+    assert store.last_observation() is None
+    assert "could not be read" in svc.last_error
+
+
+def test_gate_stays_open_during_the_fall_followup_window(monkeypatch):
+    """Fell, then out of view with nothing moving: fall_then_lost must still fire."""
+    from monitoring import store
+
+    monkeypatch.setattr("monitoring.service.live_camera_support",
+                        lambda: {"available": True, "missing": []})
+    replies = [{"person_present": True, "fall_in_progress": True}]
+
+    class Obs:
+        def observe(self, clip, fps=2.0):
+            return replies.pop(0) if replies else {"person_present": False}
+
+    svc = MonitoringService(observer_factory=Obs, clip_len=2, gap_s=0, motion_gate=MotionGate())
+    for _ in range(30):
+        svc.add_frame(_jpeg(100))
+        time.sleep(0.02)
+    time.sleep(0.2)
+    assert "fall_then_lost" in {a["kind"] for a in store.list_alerts()}
+
+
+def test_a_tiny_frame_is_accepted(monkeypatch):
+    monkeypatch.setattr("monitoring.service.live_camera_support",
+                        lambda: {"available": True, "missing": []})
+    buf = io.BytesIO()
+    Image.new("RGB", (8, 6)).save(buf, "JPEG")
+    svc = MonitoringService(observer_factory=lambda: None, clip_len=50, motion_gate=MotionGate())
+    assert svc.add_frame(buf.getvalue())["status"] == "ok"

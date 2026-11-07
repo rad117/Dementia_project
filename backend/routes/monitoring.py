@@ -45,9 +45,9 @@ def list_alerts(limit: int = 50, patient_id: str | None = None) -> list[AlertOut
 
 
 @router.get("/observation")
-def last_observation() -> dict:
-    """Most recent raw observation -- for debugging why an alert did or didn't fire."""
-    return store.last_observation() or {}
+def last_observation(patient_id: str | None = None) -> dict:
+    """Most recent raw observation, optionally for one patient."""
+    return store.last_observation(patient_id) or {}
 
 
 @router.post("/observations", response_model=list[AlertOut], status_code=201)

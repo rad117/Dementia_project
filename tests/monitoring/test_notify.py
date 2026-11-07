@@ -166,3 +166,171 @@ def test_test_message_endpoint_is_a_dry_run_without_credentials(client, clinicia
     r = client.post(f"/monitoring/contacts/{cid}/test", headers=clinician_headers)
     assert r.json()["status"] == "dry_run"
     assert client.get("/monitoring/notifications/status", headers=clinician_headers).json()["configured"] is False
+
+
+# ------------------------------------------------- queue, retries, cooldown
+
+class Scripted:
+    """Replies with each code in turn; the last one repeats."""
+
+    def __init__(self, *codes):
+        self.codes, self.calls = list(codes), []
+
+    def __call__(self, url, auth, data):
+        self.calls.append(data)
+        code = self.codes.pop(0) if len(self.codes) > 1 else self.codes[0]
+        if isinstance(code, Exception):
+            raise code
+        return code, "{}"
+
+
+def test_temporary_failure_is_retried_until_it_is_sent():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    now = [0.0]
+    t = Scripted(500, ConnectionError("offline"), 201)
+    n, _ = make(transport=t, clock=lambda: now[0])
+    n.dispatch([FALL], patient_id="CA-1001")
+    assert len(t.calls) == 1 and store.next_queued_time() == 30.0
+    now[0] = 10; n._drain_once(); assert len(t.calls) == 1   # not due yet
+    now[0] = 31; n._drain_once(); assert len(t.calls) == 2
+    now[0] = 160; n._drain_once(); assert len(t.calls) == 3
+    assert store.next_queued_time() is None
+    assert [r["status"] for r in store.list_notifications()] == ["sent", "failed", "failed"]
+
+
+def test_permanent_failure_is_not_retried():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    t = Scripted(400)
+    n, _ = make(transport=t)
+    n.dispatch([FALL], patient_id="CA-1001")
+    assert len(t.calls) == 1 and store.next_queued_time() is None
+
+
+def test_gives_up_after_the_last_retry():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    now = [0.0]
+    t = Scripted(500)
+    n, _ = make(transport=t, clock=lambda: now[0], env={**ENV, "MONITORING_NOTIFY_MAX_AGE_S": "99999"})
+    n.dispatch([FALL], patient_id="CA-1001")
+    for step in (31, 152, 453, 999):
+        now[0] = step
+        n._drain_once()
+    assert len(t.calls) == 4 and store.next_queued_time() is None
+
+
+def test_failed_send_does_not_start_the_cooldown():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    now = [0.0]
+    t = Scripted(400, 201)
+    n, _ = make(transport=t, clock=lambda: now[0])
+    n.dispatch([FALL], patient_id="CA-1001")
+    now[0] = 60
+    n.dispatch([FALL], patient_id="CA-1001")
+    assert len(t.calls) == 2 and store.list_notifications()[0]["status"] == "sent"
+
+
+def test_cooldown_is_per_contact():
+    """One person's failure must not stop the other, or re-text the one who got it."""
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    store.add_contact("CA-1001", "Meena", "+919811111111")
+    now = [0.0]
+
+    def transport(url, auth, data):
+        calls.append(data["To"])
+        return (400 if data["To"] == "+919811111111" and len(calls) <= 2 else 201), "{}"
+
+    calls = []
+    n, _ = make(transport=transport, clock=lambda: now[0])
+    n.dispatch([FALL], patient_id="CA-1001")
+    now[0] = 60
+    n.dispatch([FALL], patient_id="CA-1001")
+    assert calls == ["+919876543210", "+919811111111", "+919811111111"]
+
+
+def test_no_contacts_at_the_time_does_not_block_a_later_contact():
+    n, t = make()
+    n.dispatch([FALL], patient_id="CA-1001")
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    n.dispatch([FALL], patient_id="CA-1001")
+    assert len(t.calls) == 1
+
+
+def test_repeat_alert_while_one_is_queued_is_not_doubled():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    now = [0.0]
+    t = Scripted(500, 201)
+    n, _ = make(transport=t, clock=lambda: now[0])
+    n.dispatch([FALL], patient_id="CA-1001")
+    now[0] = 5
+    n.dispatch([FALL], patient_id="CA-1001")
+    now[0] = 40
+    n._drain_once()
+    assert len(t.calls) == 2
+
+
+def test_queued_message_survives_a_restart():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    now = [0.0]
+    first, _ = make(transport=Scripted(500), clock=lambda: now[0])
+    first.dispatch([FALL], patient_id="CA-1001")
+
+    now[0] = 40
+    t = Recorder()
+    restarted, _ = make(transport=t, clock=lambda: now[0])      # empty memory, same database
+    restarted.resume()
+    assert len(t.calls) == 1 and store.next_queued_time() is None
+
+
+def test_message_too_old_to_be_useful_is_dropped_and_logged():
+    cid = store.add_contact("CA-1001", "Ravi", "+919876543210")["id"]
+    store.enqueue_notification(patient_id="CA-1001", contact_id=cid, alert_kind="fall_event",
+                               body="old", created=0.0)
+    t = Recorder()
+    n, _ = make(transport=t, clock=lambda: 5000.0)
+    n.resume()
+    assert t.calls == [] and store.next_queued_time() is None
+    assert store.list_notifications()[0]["status"] == "expired"
+
+
+def test_removing_a_contact_cancels_their_queued_messages():
+    cid = store.add_contact("CA-1001", "Ravi", "+919876543210")["id"]
+    now = [0.0]
+    t = Scripted(500, 201)
+    n, _ = make(transport=t, clock=lambda: now[0])
+    n.dispatch([FALL], patient_id="CA-1001")
+    store.delete_contact(cid)
+    now[0] = 40
+    n._drain_once()
+    assert len(t.calls) == 1 and store.next_queued_time() is None
+
+
+def test_contact_is_reread_immediately_before_sending():
+    store.enqueue_notification(patient_id="CA-1001", contact_id=999, alert_kind="fall_event",
+                               body="x", created=0.0)
+    t = Recorder()
+    n, _ = make(transport=t, clock=lambda: 1.0)
+    n.resume()
+    assert t.calls == [] and store.list_notifications()[0]["status"] == "skipped"
+
+
+def test_background_worker_delivers_and_stops():
+    store.add_contact("CA-1001", "Ravi", "+919876543210")
+    rec = Recorder()
+    n = Notifier(transport=rec, env=ENV, patient_name=lambda p: "Asha")
+    n.dispatch([FALL], patient_id="CA-1001")
+    for _ in range(100):
+        if rec.calls and not n._worker_alive:
+            break
+        time.sleep(0.02)
+    assert len(rec.calls) == 1 and n._worker_alive is False
+
+
+def test_observation_can_be_read_for_one_patient(client, clinician_headers):
+    from monitoring.service import get_service
+    svc = get_service()
+    svc.ingest_observation({"person_present": True, "posture": "sitting"}, patient_id="CA-1001")
+    svc.ingest_observation({"person_present": True, "posture": "standing"}, patient_id="CA-1002")
+    get = lambda q: client.get(f"/monitoring/observation{q}", headers=clinician_headers).json()
+    assert get("?patient_id=CA-1001")["observation"]["posture"] == "sitting"
+    assert get("")["observation"]["posture"] == "standing"
+    assert get("?patient_id=NOPE") == {}
