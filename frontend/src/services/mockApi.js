@@ -344,6 +344,7 @@ export async function getGuardianContacts(patientId) {
 
 export async function addGuardianContact({ patientId, name, phone, channel = "sms" }) {
   await delay(DELAY_MS.short);
+  if (!getPatientById(patientId)) throw new ApiError("Patient not found.", "NOT_FOUND");
   if (!/^\+[1-9]\d{7,14}$/.test(phone || "")) {
     throw new ApiError("Phone must be in international format, e.g. +919876543210", "VALIDATION");
   }
@@ -354,12 +355,14 @@ export async function addGuardianContact({ patientId, name, phone, channel = "sm
 
 export async function deleteGuardianContact(contactId) {
   await delay(DELAY_MS.short);
+  if (!mockContacts.some((c) => c.id === contactId)) throw new ApiError("Contact not found.", "NOT_FOUND");
   mockContacts = mockContacts.filter((c) => c.id !== contactId);
   return { deleted: contactId };
 }
 
-export async function sendGuardianTest() {
+export async function sendGuardianTest(contactId) {
   await delay(DELAY_MS.short);
+  if (!mockContacts.some((c) => c.id === contactId)) throw new ApiError("Contact not found.", "NOT_FOUND");
   return { status: "dry_run" };
 }
 

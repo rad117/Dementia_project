@@ -27,10 +27,6 @@ export default function LiveCamera({ patientId, available }) {
   const [observation, setObservation] = useState(null);
   const [counters, setCounters] = useState(null);
 
-  useEffect(() => {
-    patientRef.current = patientId;
-  }, [patientId]);
-
   const stop = useCallback(() => {
     clearInterval(sendTimer.current);
     sendTimer.current = null;
@@ -42,6 +38,15 @@ export default function LiveCamera({ patientId, available }) {
   }, []);
 
   useEffect(() => stop, [stop]);
+
+  // Monitoring belongs to one patient: changing patient stops the camera, so one
+  // person's readings and alerts can never be filed under another.
+  useEffect(() => {
+    patientRef.current = patientId;
+    stop();
+    setObservation(null);
+    setCounters(null);
+  }, [patientId, stop]);
 
   const sendFrame = useCallback(() => {
     const video = videoRef.current;
@@ -81,6 +86,7 @@ export default function LiveCamera({ patientId, available }) {
   async function start() {
     setError(null);
     setObservation(null);
+    if (!patientId) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("This browser can't access a camera here. Use Chrome or Safari on https or localhost.");
       return;
@@ -114,7 +120,7 @@ export default function LiveCamera({ patientId, available }) {
     let cancelled = false;
     async function poll() {
       try {
-        const [obs, status] = await Promise.all([getLastObservation(), getMonitoringStatus()]);
+        const [obs, status] = await Promise.all([getLastObservation(patientId), getMonitoringStatus()]);
         if (cancelled) return;
         setObservation(obs?.observation ? obs : null);
         setCounters(status.counters);
@@ -128,7 +134,7 @@ export default function LiveCamera({ patientId, available }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [phase]);
+  }, [phase, patientId]);
 
   const o = observation?.observation;
   const tiers = counters?.tiers;
@@ -150,7 +156,7 @@ export default function LiveCamera({ patientId, available }) {
       <div className={styles.side}>
         <div className={styles.controls}>
           {!running ? (
-            <Button variant="accent" size="sm" onClick={start} disabled={phase === "starting" || available === false}>
+            <Button variant="accent" size="sm" onClick={start} disabled={phase === "starting" || available === false || !patientId}>
               <Camera size={15} aria-hidden="true" /> Start camera
             </Button>
           ) : (
@@ -162,6 +168,9 @@ export default function LiveCamera({ patientId, available }) {
 
         {available === false && (
           <p className={styles.note}>Camera analysis isn&apos;t installed on this server, so the camera can&apos;t be used here.</p>
+        )}
+        {available !== false && !patientId && (
+          <p className={styles.note}>Select a patient above first. Alerts and family texts are sent for that patient.</p>
         )}
         {error && <p className={styles.err} role="alert">{error}</p>}
 
