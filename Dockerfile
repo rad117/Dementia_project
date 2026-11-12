@@ -23,5 +23,8 @@ COPY models models
 # startup). Camera/VLM deps stay optional, so nothing extra to install.
 COPY monitoring monitoring
 
+# Memory-safe defaults for a 512 MB host; Render dashboard env vars override these.
+ENV MAX_ANALYSIS_SECONDS=30 WHISPER_MODEL=tiny.en
+
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
