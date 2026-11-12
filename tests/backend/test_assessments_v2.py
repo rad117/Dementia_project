@@ -311,3 +311,34 @@ def test_patient_assessments_are_listed_oldest_first(clinician_headers, particip
     listed = client.get("/patients/CA-1001/assessments", headers=clinician_headers).json()
 
     assert [a["id"] for a in listed] == ids
+
+
+def _upload_audio_async(assessment_id, headers):
+    return client.post(
+        f"/assessments/{assessment_id}/audio?async=1",
+        files={"audio": ("recording.webm", io.BytesIO(b"fake-audio-bytes"), "audio/webm")},
+        headers=headers,
+    )
+
+
+def test_async_upload_returns_processing_then_results_complete(monkeypatch, participant_headers):
+    monkeypatch.setattr(assessments_module, "predict", lambda *a, **kw: _fake_predict_result())
+    assessment_id = _create_assessment(participant_headers).json()["id"]
+
+    response = _upload_audio_async(assessment_id, participant_headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "processing"
+    # TestClient runs the background task before returning.
+    assert client.get(f"/assessments/{assessment_id}/results", headers=participant_headers).status_code == 200
+
+
+def test_async_upload_failure_marks_failed_and_results_422(monkeypatch, participant_headers):
+    def _boom(*a, **kw):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(assessments_module, "predict", _boom)
+    assessment_id = _create_assessment(participant_headers).json()["id"]
+
+    assert _upload_audio_async(assessment_id, participant_headers).status_code == 200
+    assert client.get(f"/assessments/{assessment_id}/results", headers=participant_headers).status_code == 422

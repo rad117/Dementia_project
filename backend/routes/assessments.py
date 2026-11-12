@@ -1,7 +1,8 @@
+import logging
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from backend import db
@@ -15,6 +16,7 @@ from backend.services.auth import require_clinician, require_participant, requir
 from backend.services.results_mapper import build_assessment_info, build_results, find_previous_assessment_row
 from ml.inference.predict import AudioProcessingError, predict
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Render's free-tier instance has 512MB RAM total, shared with the resident
@@ -60,10 +62,20 @@ def create_assessment(
     return AssessmentCreateResponse(id=assessment_id, status="pending_recording")
 
 
+def _process_audio(assessment_id: str, audio_bytes: bytes, task_id: str, language: str) -> None:
+    try:
+        db.save_result_row(assessment_id, **predict(audio_bytes, task_id=task_id, language=language))
+    except Exception:
+        logger.exception("Background audio processing failed for %s", assessment_id)
+        db.set_assessment_status(assessment_id, "failed")
+
+
 @router.post("/assessments/{assessment_id}/audio", response_model=AssessmentAudioResponse)
 async def upload_assessment_audio(
     assessment_id: str,
+    background_tasks: BackgroundTasks,
     audio: UploadFile = File(...),
+    run_async: bool = Query(False, alias="async"),
     subject: dict = Depends(require_subject),
 ) -> AssessmentAudioResponse:
     row = db.get_assessment_row(assessment_id)
@@ -79,6 +91,12 @@ async def upload_assessment_audio(
             raise HTTPException(status_code=413, detail="Audio file too large")
         chunks.append(chunk)
     audio_bytes = b"".join(chunks)
+
+    if run_async:
+        # Slow hosts take >60s, past the proxy's connection limit: answer now, client polls /results.
+        db.set_assessment_status(assessment_id, "processing")
+        background_tasks.add_task(_process_audio, assessment_id, audio_bytes, row["task_id"], row["language"])
+        return AssessmentAudioResponse(id=assessment_id, status="processing")
 
     try:
         result = await run_in_threadpool(predict, audio_bytes, task_id=row["task_id"], language=row["language"])
@@ -104,6 +122,8 @@ def get_assessment_results(assessment_id: str, subject: dict = Depends(require_s
     if row is None:
         raise HTTPException(status_code=404, detail="Assessment not found")
     _check_owns_row(subject, row["patient_id"])
+    if row["status"] == "failed":
+        raise HTTPException(status_code=422, detail="We couldn't analyse this recording. Please record again.")
     if row["status"] != "complete":
         raise HTTPException(status_code=409, detail="Assessment not yet processed")
 

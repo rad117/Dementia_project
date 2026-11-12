@@ -15,8 +15,8 @@ const STEPS = [
     "Preparing assessment",
 ];
 
-const MAX_RESULT_ATTEMPTS = 12;
-const RESULT_POLL_DELAY_MS = 1000;
+const MAX_RESULT_ATTEMPTS = 90;
+const RESULT_POLL_DELAY_MS = 2000;
 
 function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,7 +38,13 @@ export default function Processing() {
 
         async function waitForResults() {
             for (let attempt = 0; attempt < MAX_RESULT_ATTEMPTS; attempt += 1) {
-                const results = await getAssessmentResults(assessmentId);
+                let results = null;
+                try {
+                    results = await getAssessmentResults(assessmentId);
+                } catch (e) {
+                    // 409 = still processing on the server; anything else is a real failure.
+                    if (e.status !== 409) throw e;
+                }
 
                 if (cancelled) return;
 

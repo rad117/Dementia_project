@@ -187,6 +187,11 @@ def list_all_assessments(
         return [dict(row) for row in rows]
 
 
+def set_assessment_status(assessment_id: str, status: str, db_path: Path | None = None) -> None:
+    with sqlite3.connect(db_path or DB_PATH) as conn:
+        conn.execute("UPDATE assessments SET status = ? WHERE id = ?", (status, assessment_id))
+
+
 def save_result_row(
     assessment_id: str,
     *,

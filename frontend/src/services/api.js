@@ -88,7 +88,7 @@ export async function createAssessment(payload) {
 export async function uploadAssessmentAudio(id, audioBlob) {
   const formData = new FormData();
   formData.append("audio", audioBlob, `${id}.webm`);
-  return request(`/assessments/${id}/audio`, {
+  return request(`/assessments/${id}/audio?async=1`, {
     method: "POST",
     headers: {}, // let the browser set multipart boundary
     body: formData,
