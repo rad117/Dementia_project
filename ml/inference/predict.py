@@ -53,6 +53,8 @@ _MIN_TASK_DURATION_SECONDS = 10.0
 
 _cache: dict[str, tuple] = {}
 _cache_lock = Lock()
+# MODEL_DIR=models/baseline_v1 serves the acoustics-only model (no Whisper) on small hosts.
+DEFAULT_MODEL_DIR = Path(os.environ.get("MODEL_DIR", "models/baseline_v2"))
 
 
 def _load_model(model_dir: Path):
@@ -71,7 +73,7 @@ def _load_model(model_dir: Path):
         return loaded
 
 
-def preload(model_dir: Path = Path("models/baseline_v2")) -> None:
+def preload(model_dir: Path = DEFAULT_MODEL_DIR) -> None:
     """Eagerly loads the sklearn pipeline and, for a fused model, the Whisper
     model -- called from backend/main.py's startup lifespan so the first real
     request after a cold start doesn't pay for a Whisper checkpoint download +
@@ -112,7 +114,7 @@ def predict(
     *,
     task_id: str,
     language: str,
-    model_dir: Path = Path("models/baseline_v2"),
+    model_dir: Path = DEFAULT_MODEL_DIR,
 ) -> dict:
     """Runs the trained baseline on a raw audio upload -- acoustics-only or
     acoustic+ASR+NLP fused, depending on what model_dir's feature_names

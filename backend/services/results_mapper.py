@@ -22,7 +22,7 @@ from ml.inference.predict import _load_model
 from ml.nlp.annotate import annotate_transcript_segments
 
 _MODELS_ROOT = Path("models")
-_DEFAULT_MODEL_DIR = Path("models/baseline_v2")
+from ml.inference.predict import DEFAULT_MODEL_DIR as _DEFAULT_MODEL_DIR
 
 
 def _resolve_model_dir(model_version: str | None) -> Path:

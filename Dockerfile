@@ -29,7 +29,7 @@ ENV NUMBA_CACHE_DIR=/app/.numba
 RUN python -c "import numpy as np; from ml.features.acoustic import extract_features; from faster_whisper import WhisperModel; t=np.arange(16000*6)/16000; import io,wave; b=io.BytesIO(); w=wave.open(b,'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes((6000*np.sin(2*np.pi*150*t)*(np.sin(2*np.pi*2*t)>0)).astype('int16').tobytes()); w.close(); extract_features(b.getvalue()); WhisperModel('tiny.en', device='cpu', compute_type='int8')" || true
 
 # Memory-safe defaults for a 512 MB host; Render dashboard env vars override these.
-ENV MAX_ANALYSIS_SECONDS=30 WHISPER_MODEL=tiny.en
+ENV MAX_ANALYSIS_SECONDS=30 WHISPER_MODEL=tiny.en MODEL_DIR=models/baseline_v1
 
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
