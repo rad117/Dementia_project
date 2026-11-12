@@ -8,6 +8,7 @@ directly, so the bytes path falls back to PyAV (which bundles its own
 decoder, no system ffmpeg install required) when soundfile fails.
 """
 
+import os
 import io
 from pathlib import Path
 
@@ -82,12 +83,17 @@ def load_audio(audio: str | Path | bytes, *, sample_rate: int | None = None) -> 
     AudioProcessingError on unreadable/corrupt audio or an unsupported type."""
     if isinstance(audio, (str, Path)):
         try:
-            return _load_from_path(audio, sample_rate)
+            y, sr = _load_from_path(audio, sample_rate)
         except Exception as exc:
             raise AudioProcessingError(f"Could not load audio file: {exc}") from exc
-    if isinstance(audio, bytes):
-        return _load_from_bytes(audio, sample_rate)
-    raise AudioProcessingError(f"Unsupported audio input type: {type(audio)!r}")
+    elif isinstance(audio, bytes):
+        y, sr = _load_from_bytes(audio, sample_rate)
+    else:
+        raise AudioProcessingError(f"Unsupported audio input type: {type(audio)!r}")
+    # shortcut: optional cap so a 512 MB host doesn't OOM on long clips; truncates
+    # the analysed audio (duration-based features see the cap). Unset = no cap.
+    max_s = float(os.environ.get("MAX_ANALYSIS_SECONDS", 0))
+    return (y[: int(max_s * sr)], sr) if max_s > 0 else (y, sr)
 
 
 def extract_features(audio: str | Path | bytes, *, sample_rate: int | None = None) -> dict:
@@ -137,10 +143,16 @@ def _pause_features(y: np.ndarray, sr: int, duration_seconds: float) -> dict:
 
 
 def _pitch_features(y: np.ndarray, sr: int) -> dict:
-    f0, voiced_flag, _voiced_prob = librosa.pyin(
-        y, fmin=_PITCH_FMIN_HZ, fmax=_PITCH_FMAX_HZ, sr=sr
-    )
-    voiced_mask = voiced_flag.astype(bool) if voiced_flag is not None else np.zeros_like(f0, dtype=bool)
+    # pyin's Viterbi memory grows with clip length (~270 MB on 2 min), which OOMs
+    # Render's 512 MB tier. Chunk at a hop multiple (512) to cap it; shortcut:
+    # tiny pitch-tracking seam error at chunk edges, fine for mean/std/break counts.
+    chunk = 468 * 512
+    parts = [
+        librosa.pyin(y[i : i + chunk], fmin=_PITCH_FMIN_HZ, fmax=_PITCH_FMAX_HZ, sr=sr)
+        for i in range(0, len(y), chunk)
+    ]
+    f0 = np.concatenate([p[0] for p in parts])
+    voiced_mask = np.concatenate([p[1] for p in parts]).astype(bool)
     voice_breaks_count = _count_voice_breaks(voiced_mask)
     voiced_f0 = f0[voiced_mask]
     voiced_f0 = voiced_f0[~np.isnan(voiced_f0)]

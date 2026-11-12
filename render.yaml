@@ -10,4 +10,7 @@ services:
       - key: BACKEND_CORS_ORIGINS
         sync: false
       - key: WHISPER_MODEL
-        value: base.en
+        value: tiny.en
+      # Caps analysed audio so long clips can't OOM the 512 MB free tier.
+      - key: MAX_ANALYSIS_SECONDS
+        value: "30"

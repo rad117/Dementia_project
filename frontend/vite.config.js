@@ -9,5 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
     globals: true,
+    // shortcut: default pools fail with "Cannot read properties of undefined (reading 'config')" on vitest 5.0.2 here; revisit on upgrade.
+    pool: 'vmThreads',
   },
 })
